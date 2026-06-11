@@ -11,8 +11,10 @@ A lightweight, privacy-focused photo archive and browsing application designed f
 * 📸 Support for scanned family photographs and historical archives
 * 💾 Metadata stored in simple JSON format
 * 🌐 Browser-based interface with no installation required
-* ⚡ Lightweight and fast
+* 🌍 Platform agnostic — runs entirely in the browser on Windows, macOS, Linux, ChromeOS, and other modern platforms
+* 📦 No installation required
 * 🔒 Privacy-friendly — your photos stay under your control
+
 
 ## Why PhotoVault?
 
