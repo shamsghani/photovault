@@ -275,10 +275,50 @@
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+
+  /* COLLAPSIBLE SIDEBAR */
+  .sidebar { transition: margin-left 0.2s ease; }
+  .sidebar.collapsed { margin-left: calc(-1 * var(--sidebar-w)); }
+
+  /* HOME VIEW TOGGLE */
+  .seg-toggle { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .seg-btn { padding: 5px 11px; font-size: 12px; font-weight: 500; background: var(--bg); color: var(--text-3); border: none; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.12s; }
+  .seg-btn.active { background: var(--accent-light); color: var(--accent); }
+
+  /* FOLDER CARDS */
+  .folder-card .photo-thumb-placeholder { font-size: 28px; }
+  .folder-card .folder-count { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+  /* ABOUT MODAL */
+  .about-overlay { position: fixed; inset: 0; z-index: 400; background: var(--lb-bg); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; }
+  .about-overlay.open { display: flex; }
+  .about-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); max-width: 540px; width: 92%; max-height: 82vh; overflow-y: auto; padding: 26px 28px; position: relative; }
+  .about-card h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .about-card h2 svg { color: var(--accent); }
+  .about-tagline { font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; }
+  .about-card h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); margin: 16px 0 6px; }
+  .about-card p, .about-card li { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+  .about-card ul { padding-left: 18px; }
+  .about-card kbd { font-family: inherit; font-size: 11px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+  .about-close { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border: none; border-radius: 50%; background: var(--surface-2); color: var(--text-2); cursor: pointer; font-size: 14px; }
+  .about-close:hover { background: var(--border); }
+
+  /* LIGHTBOX EXIF + LIBRARY */
+  .lb-exif-row { font-size: 11.5px; color: var(--text-2); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .lb-lib-list { display: flex; flex-wrap: wrap; gap: 4px; max-height: 200px; overflow-y: auto; }
+
+  /* CATEGORY DELETE */
+  .cat-del { display: none; margin-left: 4px; color: var(--text-3); font-size: 12px; line-height: 1; cursor: pointer; }
+  .cat-del:hover { color: #C25151; }
+  .cat-header:hover .cat-del { display: inline; }
 </style>
+<style id="catStyles"></style>
 </head>
 <body>
 <div class="topbar">
+  <button class="icon-btn" id="sidebarToggle" title="Toggle sidebar" onclick="toggleSidebar()">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
   <div class="topbar-logo">
     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
     PhotoVault
@@ -297,6 +337,9 @@
   </div>
   <div class="topbar-right">
     <span class="count-badge" id="countBadge">0 photos</span>
+    <button class="icon-btn" id="aboutBtn" title="About PhotoVault" onclick="openAbout()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </button>
     <button class="theme-btn" id="themeBtn">
       <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
       Theme
@@ -362,8 +405,9 @@
     <div class="sidebar-section" style="flex:1">
       <div class="sidebar-header">Tags
         <span style="display:flex;gap:8px">
-          <button onclick="exportTagLibrary()">Export</button>
-          <button onclick="document.getElementById('importInput').click()">Import</button>
+          <button onclick="addCategory()" title="Add a new tag category">+ Cat</button>
+          <button onclick="exportTagLibrary()" title="Export the FULL library (all tagged photos, all categories)">Export</button>
+          <button onclick="document.getElementById('importInput').click()" title="Import one or more PhotoVault JSONs">Import</button>
         </span>
       </div>
       <input type="file" id="importInput" accept=".json" multiple style="display:none">
@@ -376,7 +420,8 @@
       <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       <h2>No photos loaded</h2>
       <p>Open a folder to start managing and tagging your photos.</p>
-      <button class="empty-cta" onclick="document.getElementById('folderInput').click()">Open Folder</button>
+      <button class="empty-cta" onclick="openFolderClicked()">Open Folder</button>
+      <button class="empty-cta" id="reopenLastBtn" style="display:none;background:var(--surface-2);color:var(--text)" onclick="reopenLastFolder()"></button>
     </div>
     <div id="gridWrap" style="display:none">
       <div class="grid-header">
@@ -385,6 +430,11 @@
           <div class="grid-subtitle" id="gridSubtitle"></div>
         </div>
         <div class="grid-controls">
+          <div class="seg-toggle">
+            <button class="seg-btn active" id="homePhotosBtn" onclick="setHomeView('photos')">Photos</button>
+            <button class="seg-btn" id="homeFoldersBtn" onclick="setHomeView('folders')">Folders</button>
+          </div>
+          <button class="export-btn" id="backFoldersBtn" onclick="exitFolder()" style="display:none">&#8592; All folders</button>
           <select class="cat-select" id="sortSelect" title="Sort by">
             <option value="none">Folder order</option>
             <option value="name">Name</option>
@@ -408,6 +458,7 @@
         </div>
       </div>
       <div class="photo-grid" id="photoGrid"></div>
+      <div class="photo-grid" id="folderGrid" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -424,30 +475,30 @@
       <div class="lb-panel-header">
         <div class="lb-filename" id="lbFilename"></div>
         <div class="lb-filemeta" id="lbFilemeta"></div>
+        <div class="lb-exif-row" id="lbExifRow"></div>
       </div>
       <div class="lb-section">
-        <div class="lb-title-row">
-          <div class="lb-section-title">Tags</div>
-          <div class="lb-sort">
-            <button class="lbs active" id="lbsAdded" onclick="setLbTagSort('added')" title="Order added">Added</button>
-            <button class="lbs" id="lbsName" onclick="setLbTagSort('name')" title="Alphabetical">Name</button>
-            <button class="lbs" id="lbsUsed" onclick="setLbTagSort('used')" title="Most used first">Used</button>
-          </div>
-        </div>
+        <div class="lb-section-title">Tags</div>
         <div class="lb-tags-list" id="lbTagsList"></div>
-        <select class="cat-select" id="lbCatSelect">
-          <option value="person">&#128100; Person</option>
-          <option value="place">&#128205; Place</option>
-          <option value="year">&#128197; Year</option>
-          <option value="other" selected>&#127991; Other</option>
-        </select>
         <div class="add-tag-row">
           <input class="add-tag-input" type="text" id="lbTagInput" placeholder="Add tag&#8230;" list="tagSuggestionList">
           <datalist id="tagSuggestionList"></datalist>
           <button class="add-tag-btn" onclick="addTagFromPanel()">Add</button>
         </div>
-        <div class="tag-suggestions" id="lbTagSuggestions"></div>
         <div id="lbExifSuggest" style="margin-top:8px;display:flex;align-items:center;gap:4px;flex-wrap:wrap"></div>
+      </div>
+      <div class="lb-section">
+        <div class="lb-title-row">
+          <div class="lb-section-title">Tag Library</div>
+          <div class="lb-sort">
+            <button class="lbs active" id="lbsName" onclick="setLbLibSort('name')" title="Alphabetical">Name</button>
+            <button class="lbs" id="lbsUsed" onclick="setLbLibSort('used')" title="Most used first">Used</button>
+          </div>
+        </div>
+        <select class="cat-select" id="lbCatSelect" onchange="renderLbLibrary()">
+          <option value="other" selected>&#127991; Other</option>
+        </select>
+        <div class="lb-lib-list" id="lbLibList"></div>
       </div>
     </div>
   </div>
@@ -500,6 +551,36 @@
   </div>
 </div>
 
+<!-- ABOUT -->
+<div class="about-overlay" id="aboutOverlay">
+  <div class="about-card">
+    <button class="about-close" onclick="closeAbout()">&#x2715;</button>
+    <h2>
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      PhotoVault
+    </h2>
+    <div class="about-tagline">A private, local photo organizer — your photos never leave your computer.</div>
+
+    <h3>What it does</h3>
+    <p>Open any folder of photos and tag them by people, places, years or your own custom categories. Filter, search, find duplicates, run slideshows, and export filtered views as portable libraries or real folders of copies.</p>
+
+    <h3>Features</h3>
+    <ul>
+      <li><strong>Fast previews</strong> — small thumbnails are generated once and cached, so even huge folders stay smooth. Full resolution only loads when you open a photo.</li>
+      <li><strong>Tag filters</strong> — combine tags (ALL / ANY) and exclude tags by clicking them a second time.</li>
+      <li><strong>Folder &amp; photo views</strong> — browse a flat grid or drill in folder by folder.</li>
+      <li><strong>Continuity</strong> — tags persist locally; multiple PhotoVault JSONs in a folder are combined automatically; auto-save writes tags back next to your photos.</li>
+      <li><strong>EXIF aware</strong> — capture date and GPS position are read from photos and shown in the viewer.</li>
+    </ul>
+
+    <h3>Shortcuts</h3>
+    <p><kbd>&#8592;</kbd>/<kbd>&#8594;</kbd> navigate &nbsp;&middot;&nbsp; <kbd>Enter</kbd> add tag &nbsp;&middot;&nbsp; <kbd>Space</kbd> pause slideshow &nbsp;&middot;&nbsp; <kbd>Esc</kbd> close / clear &nbsp;&middot;&nbsp; <kbd>Shift</kbd>+click select</p>
+
+    <h3>Privacy &amp; storage</h3>
+    <p>Everything is processed in your browser. Thumbnails, tags and preferences are stored locally (IndexedDB &amp; browser storage). Nothing is uploaded anywhere.</p>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- JSON DETECT BANNER -->
@@ -524,9 +605,12 @@ let lbCurrentList = [];
 let searchQuery = '';
 let sortBy = 'none';
 let sortDir = 'asc';
-let lbTagSort = 'added';
+let lbLibSort = localStorage.getItem('pv_libSort') || 'name';
 const selectedIds = new Set();
 let dirHandle = null, autoSaveTimer = null;
+let rootHandle = null;  // directory handle photos were loaded from (picker path)
+let homeView = localStorage.getItem('pv_homeView') || 'photos';   // 'photos' | 'folders'
+let currentFolder = null; // non-null = drilled into one folder
 let sessionList = [], sessionIdx = 0;
 let slideshowTimer = null;
 let ctxTag = null;
@@ -555,6 +639,34 @@ function setTheme(name, el) {
 document.getElementById('themeBtn').onclick = e => { e.stopPropagation(); document.getElementById('themePickerPopup').classList.toggle('open'); };
 document.addEventListener('click', () => document.getElementById('themePickerPopup').classList.remove('open'));
 document.getElementById('themePickerPopup').addEventListener('click', e => e.stopPropagation());
+
+// ABOUT
+function openAbout() { document.getElementById('aboutOverlay').classList.add('open'); }
+function closeAbout() { document.getElementById('aboutOverlay').classList.remove('open'); }
+document.getElementById('aboutOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeAbout(); });
+
+// COLLAPSIBLE SIDEBAR (state persisted in browser storage)
+function toggleSidebar() {
+  const sb = document.querySelector('.sidebar');
+  sb.classList.toggle('collapsed');
+  localStorage.setItem('pv_sidebar', sb.classList.contains('collapsed') ? 'collapsed' : 'open');
+}
+window.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('pv_sidebar') === 'collapsed') document.querySelector('.sidebar').classList.add('collapsed');
+  setHomeView(homeView, true);
+});
+
+// HOME VIEW TOGGLE (photos | folders)
+function setHomeView(v, skipRender) {
+  homeView = v;
+  localStorage.setItem('pv_homeView', v);
+  currentFolder = null;
+  document.getElementById('homePhotosBtn').classList.toggle('active', v === 'photos');
+  document.getElementById('homeFoldersBtn').classList.toggle('active', v === 'folders');
+  if (!skipRender && photos.length) renderGrid();
+}
+function exitFolder() { currentFolder = null; if (photos.length) renderGrid(); }
+function enterFolder(name) { currentFolder = name; if (photos.length) renderGrid(); }
 
 // TIFF — decoded in a Web Worker (off the UI thread) through a small queue
 const THUMB_MAX = 480;
@@ -876,15 +988,72 @@ async function init() {
   db = await openDB();
   const savedLib = await dbLoadMeta('tagLibrary');
   if (savedLib) tagLibrary = savedLib;
+  const savedCats = await dbLoadMeta('catList');
+  if (Array.isArray(savedCats) && savedCats.length) catList = savedCats;
+  if (!catList.some(c => c.id === 'other')) catList.push({ id: 'other', label: '🏷 Other' });
+  refreshCatStyles();
+  rebuildCatSelects();
+  setLbLibSort(lbLibSort, true);
   updateTagSuggestionDatalist();
   updateSidebar();
+  updateReopenUI();
 }
 
 // FOLDER LOAD
-document.getElementById('folderBtn').onclick = () => document.getElementById('folderInput').click();
-document.getElementById('folderInput').onchange = async e => {
-  const allFiles = Array.from(e.target.files);
+// Primary path uses the File System Access API (Chrome/Edge): we keep the
+// directory handle, which lets us (a) auto-save silently into the same folder
+// without re-prompting, and (b) remember the last folder across sessions
+// (the handle is persisted in IndexedDB — cookies/localStorage can't hold
+// folder access, but they DO hold the lightweight prefs like theme & layout).
+// Fallback path is the classic <input webkitdirectory> for other browsers.
 
+function relPathOf(f) { return f.pvPath || f.webkitRelativePath || f.name; }
+
+function openFolderClicked() {
+  if (window.showDirectoryPicker) {
+    (async () => {
+      let handle;
+      try { handle = await window.showDirectoryPicker({ mode: 'readwrite' }); }
+      catch (e) { return; /* cancelled */ }
+      await loadFromHandle(handle);
+    })();
+  } else {
+    document.getElementById('folderInput').click();
+  }
+}
+document.getElementById('folderBtn').onclick = openFolderClicked;
+
+async function collectFiles(dir, path, out) {
+  for await (const entry of dir.values()) {
+    if (entry.name.startsWith('.')) continue;
+    if (entry.kind === 'file') {
+      const f = await entry.getFile();
+      try { Object.defineProperty(f, 'pvPath', { value: path + entry.name }); } catch (e) {}
+      out.push(f);
+    } else if (entry.kind === 'directory') {
+      await collectFiles(entry, path + entry.name + '/', out);
+    }
+  }
+}
+
+async function loadFromHandle(handle) {
+  const all = [];
+  try { await collectFiles(handle, handle.name + '/', all); }
+  catch (e) { showToast('Could not read that folder'); return; }
+  rootHandle = handle;
+  // Remember this folder for next session
+  try { dbSaveMeta('lastDirHandle', handle); } catch (e) {}
+  localStorage.setItem('pv_lastFolderName', handle.name);
+  await loadFiles(all);
+  updateReopenUI();
+}
+
+document.getElementById('folderInput').onchange = async e => {
+  rootHandle = null; // input path gives no writable handle
+  await loadFiles(Array.from(e.target.files));
+};
+
+async function loadFiles(allFiles) {
   // Scan EVERY level of the tree for photovault JSON files. All of them are
   // combined on load: tags are unioned per photo, so an image tagged
   // "person a" in its subfolder's JSON and "person b" in the root JSON ends
@@ -893,8 +1062,8 @@ document.getElementById('folderInput').onchange = async e => {
     .filter(f => /photovault.*\.json$/i.test(f.name))
     .sort((a, b) => {
       // Root-level (shallowest) first, tag-library files first within a level
-      const da = (a.webkitRelativePath || a.name).split('/').length;
-      const db_ = (b.webkitRelativePath || b.name).split('/').length;
+      const da = relPathOf(a).split('/').length;
+      const db_ = relPathOf(b).split('/').length;
       if (da !== db_) return da - db_;
       return (/tag-library/i.test(b.name) ? 1 : 0) - (/tag-library/i.test(a.name) ? 1 : 0);
     });
@@ -912,16 +1081,19 @@ document.getElementById('folderInput').onchange = async e => {
   Object.values(tiffCache).forEach(c => { if (c.lb) URL.revokeObjectURL(c.lb); });
   for (const k in tiffCache) delete tiffCache[k];
   photos = [];
-  const firstPath = files[0].webkitRelativePath || files[0].name;
+  const firstPath = relPathOf(files[0]);
   document.getElementById('folderLabel').textContent = (firstPath.split('/')[0] || 'Folder') + ' (' + files.length + ' images)';
   const CHUNK = 200;
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     const id = f.name + '_' + f.size;
     const sp = savedMap[id];
+    const rel = relPathOf(f);
+    // Subfolder path relative to the chosen root ('' = directly in root)
+    const folder = rel.includes('/') ? rel.slice(rel.indexOf('/') + 1, rel.lastIndexOf('/') + 1).replace(/\/$/, '') : '';
     // NOTE: no object URL is created here — full-res files are only opened
     // on demand. The grid uses the small persisted previews instead.
-    photos.push({ id, name: f.name, size: f.size, file: f, tags: sp ? sp.tags : [], isTiff: isTiff(f) });
+    photos.push({ id, name: f.name, size: f.size, file: f, folder, tags: sp ? sp.tags : [], isTiff: isTiff(f) });
     if (i % CHUNK === 0) {
       pb.style.width = ((i + 1) / files.length * 100) + '%';
       // Yield to the browser so the progress bar paints and input stays responsive
@@ -934,7 +1106,7 @@ document.getElementById('folderInput').onchange = async e => {
   document.getElementById('emptyState').style.display = 'none';
   const gw = document.getElementById('gridWrap');
   gw.style.display = 'flex'; gw.style.flexDirection = 'column'; gw.style.gap = '16px';
-  currentView = 'all'; tagFilter = [];
+  currentView = 'all'; tagFilter = []; currentFolder = null;
   selectedIds.clear(); updateBatchBar();
   updateFilterBar(); updateAll();
   showToast('Loaded ' + photos.length + ' photos');
@@ -946,7 +1118,36 @@ document.getElementById('folderInput').onchange = async e => {
   if (jsonFiles.length) {
     setTimeout(() => showJsonBanner(jsonFiles), 800);
   }
-};
+}
+
+// REMEMBER LAST FOLDER
+async function reopenLastFolder() {
+  let handle = null;
+  try { handle = await dbLoadMeta('lastDirHandle'); } catch (e) {}
+  if (!handle) { showToast('No previous folder remembered'); return; }
+  try {
+    let perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') { showToast('Permission not granted'); return; }
+  } catch (e) { showToast('Could not access the previous folder'); return; }
+  await loadFromHandle(handle);
+}
+
+async function updateReopenUI() {
+  const btn = document.getElementById('reopenLastBtn');
+  const name = localStorage.getItem('pv_lastFolderName');
+  let hasHandle = false;
+  try { hasHandle = !!(await dbLoadMeta('lastDirHandle')); } catch (e) {}
+  if (hasHandle && name && !photos.length) {
+    btn.textContent = 'Reopen "' + name + '"';
+    btn.style.display = 'inline-block';
+  } else {
+    btn.style.display = 'none';
+  }
+  if (!photos.length && name) {
+    document.getElementById('folderLabel').textContent = 'Last: ' + name;
+  }
+}
 
 // JSON BANNER (auto-detect, supports multiple files)
 let pendingJsonFiles = null;
@@ -981,10 +1182,50 @@ function readFileAsText(file) {
   });
 }
 
+function dbGetPhoto(id) {
+  return new Promise(res => {
+    try {
+      const rq = db.transaction('photos', 'readonly').objectStore('photos').get(id);
+      rq.onsuccess = () => res(rq.result || null);
+      rq.onerror = () => res(null);
+    } catch (e) { res(null); }
+  });
+}
+
+// Union-merge tags for a photo that is NOT currently loaded — written straight
+// into IndexedDB so they apply the next time its folder is opened.
+async function mergeSavedPhoto(id, p) {
+  const existing = await dbGetPhoto(id);
+  const tags = existing && Array.isArray(existing.tags) ? existing.tags.slice() : [];
+  let added = 0;
+  p.tags.forEach(t => {
+    if (t && t.name && !tags.some(x => x.name === t.name)) {
+      tags.push({ name: t.name, cat: t.cat || 'other' });
+      tagLibrary[t.name] = tagLibrary[t.name] || t.cat || 'other';
+      added++;
+    }
+  });
+  if (added) {
+    try { db.transaction('photos', 'readwrite').objectStore('photos').put({ id, name: p.name, size: p.size, tags }); } catch (e) {}
+  }
+  return added;
+}
+
 // Merge one parsed JSON into the live state. Purely additive: tags a photo
-// already has are kept, new ones are unioned in. Returns entries imported.
-function applyJsonData(data) {
+// already has are kept, new ones are unioned in. Full-library files also
+// carry categories and photos from other folders/sessions; those are merged
+// into IndexedDB so nothing is lost. Returns entries imported.
+async function applyJsonData(data) {
   let imported = 0;
+
+  // Custom categories (full-library format)
+  if (Array.isArray(data.categories)) {
+    let catsAdded = false;
+    data.categories.forEach(c => {
+      if (c && c.id && !catById(c.id)) { catList.push({ id: c.id, label: c.label || c.id, color: c.color }); catsAdded = true; imported++; }
+    });
+    if (catsAdded) { saveCats(); refreshCatStyles(); rebuildCatSelects(); }
+  }
 
   // Handle tag-library export format
   if (data.tagLibrary && typeof data.tagLibrary === 'object') {
@@ -993,12 +1234,13 @@ function applyJsonData(data) {
     });
   }
 
-  // Handle per-view export format (has photos array with tags)
+  // Handle photos array (per-view and full-library formats)
   if (Array.isArray(data.photos)) {
-    data.photos.forEach(p => {
+    for (const p of data.photos) {
+      if (!p || !Array.isArray(p.tags)) continue;
       const id = p.name + '_' + p.size;
       const live = photoById.get(id) || photos.find(ph => ph.id === id);
-      if (live && Array.isArray(p.tags)) {
+      if (live) {
         if (!live.tags) live.tags = [];
         let changed = false;
         p.tags.forEach(t => {
@@ -1009,8 +1251,11 @@ function applyJsonData(data) {
           }
         });
         if (changed) dbSavePhoto(live);
+      } else if (p.tags.length) {
+        // Photo not in the open folder — persist for future sessions
+        imported += await mergeSavedPhoto(id, p);
       }
-    });
+    }
   }
   return imported;
 }
@@ -1020,7 +1265,7 @@ async function loadJsonFiles(files) {
   let imported = 0, failed = 0;
   for (const file of files) {
     try {
-      imported += applyJsonData(JSON.parse(await readFileAsText(file)));
+      imported += await applyJsonData(JSON.parse(await readFileAsText(file)));
     } catch (err) { failed++; }
   }
   dbSaveMeta('tagLibrary', tagLibrary);
@@ -1089,7 +1334,7 @@ function updateFilterBar() {
 // VIEWS
 function setView(view, tagName, tagCat) {
   if (view === 'tag') { addToFilter(tagName, tagCat); return; }
-  currentView = view; tagFilter = [];
+  currentView = view; tagFilter = []; currentFolder = null;
   updateFilterBar();
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tag-item').forEach(el => el.classList.remove('active'));
@@ -1101,6 +1346,8 @@ function setView(view, tagName, tagCat) {
 
 function getFilteredPhotos() {
   let list = photos;
+  // Folder drill-in narrows every view
+  if (currentFolder !== null) list = list.filter(p => (p.folder || '') === currentFolder);
   if (currentView === 'untagged') {
     list = list.filter(p => !p.tags || !p.tags.length);
   } else if (currentView === 'duplicates') {
@@ -1199,7 +1446,54 @@ function buildCard(photo) {
   return card;
 }
 
+// Dispatcher: photo grid by default; folder cards when the Folders home view
+// is active and nothing narrows the result (no drill-in, filter, or search).
 function renderGrid() {
+  if (!photos.length) return;
+  const folderMode = homeView === 'folders' && currentView === 'all' && !searchQuery && currentFolder === null && tagFilter.length === 0;
+  document.getElementById('photoGrid').style.display = folderMode ? 'none' : 'grid';
+  document.getElementById('folderGrid').style.display = folderMode ? 'grid' : 'none';
+  if (folderMode) renderFolderGrid(); else renderPhotoGrid();
+}
+
+function renderFolderGrid() {
+  const grid = document.getElementById('folderGrid');
+  grid.innerHTML = '';
+  ++renderToken; // cancel any in-flight photo-grid batches
+  const groups = new Map();
+  photos.forEach(p => {
+    const k = p.folder || '';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(p);
+  });
+  const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+  document.getElementById('gridTitle').textContent = 'Folders';
+  document.getElementById('gridSubtitle').textContent = keys.length + ' folder' + (keys.length !== 1 ? 's' : '') + ' · ' + photos.length + ' photos';
+  document.getElementById('countBadge').textContent = photos.length + ' photos';
+  document.getElementById('exportViewBtn').style.display = 'none';
+  document.getElementById('exportCopiesBtn').style.display = 'none';
+  document.getElementById('backFoldersBtn').style.display = 'none';
+  keys.forEach(k => {
+    const arr = groups.get(k);
+    const card = document.createElement('div');
+    card.className = 'photo-card folder-card';
+    card.innerHTML = '<div class="photo-thumb-placeholder">&#128193;</div>' +
+      '<div class="photo-info"><div class="photo-name" title="' + (k || '(root)') + '">&#128193; ' + (k || '(root)') + '</div>' +
+      '<div class="folder-count">' + arr.length + ' photo' + (arr.length !== 1 ? 's' : '') + '</div></div>';
+    // Cover thumbnail from the folder's first photo
+    getThumbURL(arr[0]).then(url => {
+      const ph = card.querySelector('.photo-thumb-placeholder');
+      if (!ph) return;
+      const img = document.createElement('img');
+      img.className = 'photo-thumb'; img.src = url; img.alt = k || '(root)';
+      ph.replaceWith(img);
+    }).catch(() => {});
+    card.onclick = () => enterFolder(k);
+    grid.appendChild(card);
+  });
+}
+
+function renderPhotoGrid() {
   if (!photos.length) return;
   const filtered = getFilteredPhotos();
   const grid = document.getElementById('photoGrid');
@@ -1208,6 +1502,7 @@ function renderGrid() {
   const myToken = ++renderToken;
 
   let title = 'All Photos';
+  if (currentFolder !== null) title = '📁 ' + (currentFolder || '(root)');
   if (currentView === 'untagged') title = 'Untagged Photos';
   else if (currentView === 'duplicates') title = 'Possible Duplicates (grouped by file size)';
   else if (currentView === 'tag' && tagFilter.length > 0) {
@@ -1223,6 +1518,7 @@ function renderGrid() {
   const inCustomView = currentView === 'tag' && tagFilter.length > 0;
   document.getElementById('exportViewBtn').style.display = inCustomView ? 'flex' : 'none';
   document.getElementById('exportCopiesBtn').style.display = inCustomView ? 'flex' : 'none';
+  document.getElementById('backFoldersBtn').style.display = currentFolder !== null ? 'flex' : 'none';
 
   // First batch renders synchronously (fills the viewport instantly),
   // the rest streams in via requestAnimationFrame so scroll never janks.
@@ -1281,32 +1577,38 @@ async function renderLightbox() {
   }
   document.getElementById('lbFilename').textContent = photo.name;
   document.getElementById('lbFilemeta').textContent = formatSize(photo.size);
-  renderLbTags(); renderLbSuggestions(); renderLbExifSuggestion();
+  renderLbTags(); renderLbLibrary(); renderLbExifSuggestion();
 }
 function renderLbTags() {
-  let tags = (lbCurrentPhoto.tags || []).slice();
-  if (lbTagSort === 'name') {
-    tags.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (lbTagSort === 'used') {
-    const tc = {};
-    photos.forEach(p => (p.tags || []).forEach(t => { tc[t.name] = (tc[t.name] || 0) + 1; }));
-    tags.sort((a, b) => (tc[b.name] || 0) - (tc[a.name] || 0) || a.name.localeCompare(b.name));
-  } // 'added' keeps insertion order
-  document.getElementById('lbTagsList').innerHTML = renderTagPills(tags, true);
+  // Applied tags always show in the order they were added; the sort controls
+  // apply to the tag LIBRARY below, not to a photo's own tags.
+  document.getElementById('lbTagsList').innerHTML = renderTagPills(lbCurrentPhoto.tags, true) ||
+    '<span style="font-size:11px;color:var(--text-3)">No tags yet</span>';
 }
-function setLbTagSort(mode) {
-  lbTagSort = mode;
-  document.getElementById('lbsAdded').classList.toggle('active', mode === 'added');
+function setLbLibSort(mode, skipRender) {
+  lbLibSort = mode;
+  localStorage.setItem('pv_libSort', mode);
   document.getElementById('lbsName').classList.toggle('active', mode === 'name');
   document.getElementById('lbsUsed').classList.toggle('active', mode === 'used');
-  if (lbCurrentPhoto) renderLbTags();
+  if (!skipRender && lbCurrentPhoto) renderLbLibrary();
 }
-function renderLbSuggestions() {
+// Tag library browser: shows every tag in the selected category (minus ones
+// already on this photo), sorted by name or by usage. Click to apply.
+function renderLbLibrary() {
+  if (!lbCurrentPhoto) return;
+  const cat = document.getElementById('lbCatSelect').value;
   const ex = new Set((lbCurrentPhoto.tags || []).map(t => t.name));
-  const sugg = Object.entries(tagLibrary).filter(([n]) => !ex.has(n)).slice(0, 12);
-  document.getElementById('lbTagSuggestions').innerHTML = sugg.map(([n, c]) =>
-    '<span class="tag-suggestion ' + c + '" onclick="quickAddTag(\'' + n + '\',\'' + c + '\')">' + n + '</span>'
-  ).join('');
+  let entries = Object.entries(tagLibrary).filter(([n, c]) => (c || 'other') === cat && !ex.has(n));
+  if (lbLibSort === 'used') {
+    const tc = {};
+    photos.forEach(p => (p.tags || []).forEach(t => { tc[t.name] = (tc[t.name] || 0) + 1; }));
+    entries.sort((a, b) => (tc[b[0]] || 0) - (tc[a[0]] || 0) || a[0].localeCompare(b[0]));
+  } else {
+    entries.sort((a, b) => a[0].localeCompare(b[0]));
+  }
+  document.getElementById('lbLibList').innerHTML = entries.map(([n, c]) =>
+    '<span class="tag-suggestion ' + (c || 'other') + '" onclick="quickAddTag(\'' + n + '\',\'' + (c || 'other') + '\')">' + n + '</span>'
+  ).join('') || '<span style="font-size:11px;color:var(--text-3)">No unused tags in this category</span>';
 }
 function closeLightbox() { stopSlideshow(); document.getElementById('lightbox').classList.remove('open'); document.getElementById('lbImg').src = ''; releaseLbFullURL(); }
 function lbNav(dir) { lbIndex = (lbIndex + dir + lbCurrentList.length) % lbCurrentList.length; renderLightbox(); }
@@ -1323,20 +1625,87 @@ function addTagToPhoto(photo, name, cat) {
   if (photo.tags.some(t => t.name === name)) { showToast('Tag already added'); return; }
   photo.tags.push({ name, cat }); tagLibrary[name] = cat;
   dbSavePhoto(photo); dbSaveMeta('tagLibrary', tagLibrary);
-  updateTagSuggestionDatalist(); renderLbTags(); renderLbSuggestions(); renderLbExifSuggestion(); updateAll();
+  updateTagSuggestionDatalist(); renderLbTags(); renderLbLibrary(); renderLbExifSuggestion(); updateAll();
   scheduleAutoSave();
   showToast('"' + name + '" added');
 }
 function removeTagFromCurrent(name) {
   lbCurrentPhoto.tags = lbCurrentPhoto.tags.filter(t => t.name !== name);
-  dbSavePhoto(lbCurrentPhoto); renderLbTags(); renderLbSuggestions(); renderLbExifSuggestion(); updateAll();
+  dbSavePhoto(lbCurrentPhoto); renderLbTags(); renderLbLibrary(); renderLbExifSuggestion(); updateAll();
   scheduleAutoSave();
 }
 
-// SIDEBAR
-const CATS = ['person','place','year','other'];
-const CAT_LABELS = { person: '👤 People', place: '📍 Places', year: '📅 Years', other: '🏷 Other' };
+// ===================== TAG CATEGORIES (dynamic, user-editable) =====================
+const BUILTIN_CAT_IDS = ['person', 'place', 'year', 'other'];
+let catList = [
+  { id: 'person', label: '👤 People' },
+  { id: 'place',  label: '📍 Places' },
+  { id: 'year',   label: '📅 Years' },
+  { id: 'other',  label: '🏷 Other' }
+];
+const CAT_PALETTE = ['#D87CA6', '#7CB8D8', '#A6C86A', '#D8A84A', '#9B8ED8', '#6AC8B8', '#C87C7C', '#8AA6C8'];
 
+function catIds() { return catList.map(c => c.id); }
+function catById(id) { return catList.find(c => c.id === id); }
+function saveCats() { dbSaveMeta('catList', catList); }
+
+// Built-in categories are themed via CSS variables; custom ones get colors
+// injected into the #catStyles stylesheet.
+function refreshCatStyles() {
+  let css = '';
+  catList.forEach((c, i) => {
+    if (BUILTIN_CAT_IDS.includes(c.id)) return;
+    const col = c.color || CAT_PALETTE[i % CAT_PALETTE.length];
+    css += '.tag-pill.' + c.id + ',.filter-tag-chip.' + c.id + ',.tag-suggestion.' + c.id + '{background:' + col + '26;color:' + col + ';}';
+    css += '.cat-dot.' + c.id + '{background:' + col + ';}';
+  });
+  document.getElementById('catStyles').textContent = css;
+}
+
+// Every category <select> in the app is rebuilt from catList.
+function rebuildCatSelects() {
+  ['lbCatSelect', 'batchCatSelect', 'sessionCatSelect'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = catList.map(c => '<option value="' + c.id + '">' + c.label + '</option>').join('');
+    sel.value = catIds().includes(prev) ? prev : 'other';
+  });
+}
+
+function addCategory() {
+  const name = prompt('New category name:');
+  if (!name) return;
+  const label = name.trim();
+  if (!label) return;
+  const id = 'c_' + label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (id === 'c_' || catById(id)) { showToast('That category already exists'); return; }
+  catList.push({ id, label, color: CAT_PALETTE[catList.length % CAT_PALETTE.length] });
+  saveCats(); refreshCatStyles(); rebuildCatSelects(); updateSidebar();
+  if (lbCurrentPhoto) renderLbLibrary();
+  showToast('Category "' + label + '" added');
+}
+
+function deleteCategory(id) {
+  if (id === 'other') { showToast("Can't delete the fallback category"); return; }
+  const c = catById(id);
+  if (!c) return;
+  if (!confirm('Delete category "' + c.label + '"? Its tags will move to Other.')) return;
+  catList = catList.filter(x => x.id !== id);
+  Object.keys(tagLibrary).forEach(n => { if (tagLibrary[n] === id) tagLibrary[n] = 'other'; });
+  photos.forEach(p => {
+    let changed = false;
+    (p.tags || []).forEach(t => { if (t.cat === id) { t.cat = 'other'; changed = true; } });
+    if (changed) dbSavePhoto(p);
+  });
+  tagFilter.forEach(t => { if (t.cat === id) t.cat = 'other'; });
+  dbSaveMeta('tagLibrary', tagLibrary); saveCats();
+  refreshCatStyles(); rebuildCatSelects(); updateFilterBar(); updateAll(); scheduleAutoSave();
+  if (lbCurrentPhoto) { renderLbTags(); renderLbLibrary(); }
+  showToast('Category deleted — tags moved to Other');
+}
+
+// SIDEBAR
 function updateSidebar() {
   document.getElementById('allCount').textContent = photos.length;
   const untagged = photos.filter(p => !p.tags || !p.tags.length).length;
@@ -1347,16 +1716,19 @@ function updateSidebar() {
   document.getElementById('dupCount').textContent = photos.filter(p => sc[p.size] > 1).length;
   const tc = {};
   photos.forEach(p => { (p.tags || []).forEach(t => { tc[t.name] = (tc[t.name] || 0) + 1; }); });
-  const byCat = { person:[], place:[], year:[], other:[] };
+  const byCat = {};
+  catList.forEach(c => { byCat[c.id] = []; });
   Object.entries(tagLibrary).forEach(([n,c]) => { (byCat[c] || byCat.other).push(n); });
   const tree = document.getElementById('tagTree');
   tree.innerHTML = '';
-  CATS.forEach(cat => {
+  catList.forEach(catDef => {
+    const cat = catDef.id;
     const tags = byCat[cat];
     if (!tags.length) return;
     const g = document.createElement('div');
     g.className = 'cat-group';
-    g.innerHTML = '<div class="cat-header" onclick="toggleCat(this)"><span class="cat-dot ' + cat + '"></span>' + CAT_LABELS[cat] + '<span class="cat-arrow open">&#9658;</span></div>' +
+    const delBtn = cat !== 'other' ? '<span class="cat-del" title="Delete category" onclick="event.stopPropagation();deleteCategory(\'' + cat + '\')">&#x2715;</span>' : '';
+    g.innerHTML = '<div class="cat-header" onclick="toggleCat(this)"><span class="cat-dot ' + cat + '"></span>' + catDef.label + delBtn + '<span class="cat-arrow open">&#9658;</span></div>' +
       '<div class="cat-tags open">' + tags.map(name => {
         const f = tagFilter.find(t => t.name === name);
         const badge = f ? (f.exclude ? '&#8722;' : '&#10003;') : '+';
@@ -1380,10 +1752,24 @@ function showToast(msg) {
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
-// EXPORT
-function exportTagLibrary() {
-  downloadJSON({ tagLibrary, exportedAt: new Date().toISOString(), photoCount: photos.length }, 'photovault-tag-library.json');
-  showToast('Tag library exported');
+// EXPORT — FULL library: every tagged photo PhotoVault has ever seen (from
+// IndexedDB, not just the currently open folder), all tag names, and all
+// categories. This is a complete, portable backup of your tag data.
+async function exportTagLibrary() {
+  const saved = await dbLoadPhotos();
+  const map = {};
+  saved.forEach(p => { if (p.tags && p.tags.length) map[p.id] = { name: p.name, size: p.size, tags: p.tags }; });
+  photos.forEach(p => { if (p.tags && p.tags.length) map[p.id] = { name: p.name, size: p.size, tags: p.tags }; });
+  const list = Object.values(map);
+  downloadJSON({
+    format: 'photovault-full',
+    tagLibrary,
+    categories: catList,
+    exportedAt: new Date().toISOString(),
+    photoCount: list.length,
+    photos: list
+  }, 'photovault-tag-library.json');
+  showToast('Full library exported — ' + list.length + ' tagged photos');
 }
 function viewSlug() {
   return tagFilter.map(t => (t.exclude ? 'not-' : '') + t.name).join('-').replace(/[^\w\- ]+/g, '_').slice(0, 50);
@@ -1483,6 +1869,11 @@ document.getElementById('gridLg').onclick = () => { document.getElementById('pho
 
 // KEYBOARD
 document.addEventListener('keydown', e => {
+  // About modal first
+  if (document.getElementById('aboutOverlay').classList.contains('open')) {
+    if (e.key === 'Escape') closeAbout();
+    return;
+  }
   // Tagging session takes priority
   if (document.getElementById('sessionOverlay').classList.contains('open')) {
     if (e.key === 'Escape') endSession();
@@ -1595,10 +1986,10 @@ function renameTag(oldName, newName) {
 }
 function ctxChangeCat() {
   if (!ctxTag) return;
-  const c = prompt('Category for "' + ctxTag.name + '" (person / place / year / other):', tagLibrary[ctxTag.name] || 'other');
+  const c = prompt('Category for "' + ctxTag.name + '" (' + catIds().join(' / ') + '):', tagLibrary[ctxTag.name] || 'other');
   if (!c) return;
   const cat = c.trim().toLowerCase();
-  if (!CATS.includes(cat)) { showToast('Invalid category'); return; }
+  if (!catIds().includes(cat)) { showToast('Invalid category'); return; }
   tagLibrary[ctxTag.name] = cat;
   photos.forEach(p => {
     if (!p.tags || !p.tags.some(t => t.name === ctxTag.name)) return;
@@ -1625,8 +2016,11 @@ function ctxDelete() {
   showToast('Tag deleted');
 }
 
-// ===================== EXIF (DateTimeOriginal) =====================
-function parseExifDate(file) {
+// ===================== EXIF (date + GPS location) =====================
+// Extracts DateTimeOriginal and GPS coordinates. The date is shown in the
+// viewer; location is parsed and kept on the photo object (photo.exif.lat /
+// .lon) for future features like place-based tagging or maps.
+function parseExifData(file) {
   return new Promise(resolve => {
     if (!file || !/\.jpe?g$/i.test(file.name)) return resolve(null);
     const reader = new FileReader();
@@ -1651,13 +2045,24 @@ function parseExifDate(file) {
               for (let k = 0; k < cnt - 1 && p + k < v.byteLength; k++) s += String.fromCharCode(v.getUint8(p + k));
               return s;
             };
+            const readRationals = ent => {
+              const cnt = g32(ent + 4);
+              const p = tiff + g32(ent + 8);
+              const vals = [];
+              for (let k = 0; k < cnt && p + k * 8 + 8 <= v.byteLength; k++) {
+                const num = g32(p + k * 8), den = g32(p + k * 8 + 4);
+                vals.push(den ? num / den : 0);
+              }
+              return vals;
+            };
             const ifd0 = tiff + g32(tiff + 4);
             const n = g16(ifd0);
-            let exifPtr = 0, dateStr = null;
+            let exifPtr = 0, gpsPtr = 0, dateStr = null;
             for (let i = 0; i < n; i++) {
               const ent = ifd0 + 2 + i * 12;
               const tag = g16(ent);
               if (tag === 0x8769) exifPtr = g32(ent + 8);
+              if (tag === 0x8825) gpsPtr = g32(ent + 8);
               if (tag === 0x0132) dateStr = readAscii(ent);
             }
             if (exifPtr) {
@@ -1668,11 +2073,33 @@ function parseExifDate(file) {
                 if (g16(ent) === 0x9003) { dateStr = readAscii(ent); break; }
               }
             }
-            if (dateStr) {
-              const m = dateStr.match(/^(\d{4}):(\d{2}):(\d{2})/);
-              if (m) return resolve(new Date(+m[1], +m[2] - 1, +m[3]));
+            let lat = null, lon = null;
+            if (gpsPtr) {
+              const gifd = tiff + gpsPtr;
+              const gn = g16(gifd);
+              let latRef = 'N', lonRef = 'E', latV = null, lonV = null;
+              for (let i = 0; i < gn; i++) {
+                const ent = gifd + 2 + i * 12;
+                const tag = g16(ent);
+                if (tag === 0x0001) latRef = readAscii(ent) || 'N';
+                else if (tag === 0x0002) latV = readRationals(ent);
+                else if (tag === 0x0003) lonRef = readAscii(ent) || 'E';
+                else if (tag === 0x0004) lonV = readRationals(ent);
+              }
+              if (latV && latV.length >= 1 && lonV && lonV.length >= 1) {
+                lat = (latV[0] || 0) + (latV[1] || 0) / 60 + (latV[2] || 0) / 3600;
+                lon = (lonV[0] || 0) + (lonV[1] || 0) / 60 + (lonV[2] || 0) / 3600;
+                if (/S/i.test(latRef)) lat = -lat;
+                if (/W/i.test(lonRef)) lon = -lon;
+                if (!isFinite(lat) || !isFinite(lon) || (lat === 0 && lon === 0)) { lat = null; lon = null; }
+              }
             }
-            return resolve(null);
+            let date = null;
+            if (dateStr) {
+              const m = dateStr.match(/^(\d{4}):(\d{2}):(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+              if (m) date = new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+            }
+            return resolve((date || lat !== null) ? { date, lat, lon } : null);
           }
           off += 2 + size;
         }
@@ -1684,15 +2111,29 @@ function parseExifDate(file) {
   });
 }
 
+// Capture date + coordinates shown under the filename in the viewer
+function renderLbExifInfo() {
+  const el = document.getElementById('lbExifRow');
+  const ex = lbCurrentPhoto && lbCurrentPhoto.exif;
+  if (!ex || (!ex.date && ex.lat === null)) { el.innerHTML = ''; return; }
+  const parts = [];
+  if (ex.date) parts.push('&#128197; ' + ex.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) +
+    (ex.date.getHours() || ex.date.getMinutes() ? ' ' + String(ex.date.getHours()).padStart(2, '0') + ':' + String(ex.date.getMinutes()).padStart(2, '0') : ''));
+  if (ex.lat !== null && ex.lat !== undefined) parts.push('&#128205; ' + ex.lat.toFixed(5) + ', ' + ex.lon.toFixed(5));
+  el.innerHTML = parts.join(' &nbsp;&middot;&nbsp; ');
+}
+
 async function renderLbExifSuggestion() {
   const photo = lbCurrentPhoto;
   const el = document.getElementById('lbExifSuggest');
-  if (!photo) { el.innerHTML = ''; return; }
+  if (!photo) { el.innerHTML = ''; document.getElementById('lbExifRow').innerHTML = ''; return; }
   el.innerHTML = '';
-  if (photo.exifDate === undefined) photo.exifDate = await parseExifDate(photo.file);
+  document.getElementById('lbExifRow').innerHTML = ''; // clear while parsing the new photo
+  if (photo.exif === undefined) photo.exif = await parseExifData(photo.file);
   if (lbCurrentPhoto !== photo) return; // navigated away while parsing
-  if (!photo.exifDate) return;
-  const yr = String(photo.exifDate.getFullYear());
+  renderLbExifInfo();
+  if (!photo.exif || !photo.exif.date) return;
+  const yr = String(photo.exif.date.getFullYear());
   if ((photo.tags || []).some(t => t.name === yr)) return;
   el.innerHTML = '<span style="font-size:10.5px;color:var(--text-3)">From EXIF:</span>' +
     '<span class="tag-suggestion year" onclick="quickAddTag(\'' + yr + '\',\'year\')">' + yr + '</span>';
@@ -1786,6 +2227,23 @@ async function toggleAutoSave() {
     showToast('Auto-save off');
     return;
   }
+  // Preferred: write straight into the folder the photos were loaded from —
+  // no file-explorer dialog, permission was already granted at open time.
+  if (rootHandle) {
+    try {
+      let perm = await rootHandle.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') perm = await rootHandle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        dirHandle = rootHandle;
+        document.getElementById('autoSaveLabel').textContent = 'Auto-save: On';
+        document.getElementById('autoSaveBtn').classList.add('active');
+        await writeAutoSave();
+        showToast('Auto-save on — writing to "' + rootHandle.name + '"');
+        return;
+      }
+    } catch (e) { /* fall through to picker */ }
+  }
+  // Fallback (photos loaded via the legacy input, or permission refused)
   if (!window.showDirectoryPicker) { showToast('Auto-save needs Chrome or Edge'); return; }
   try {
     dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
@@ -1807,6 +2265,7 @@ async function writeAutoSave() {
     const w = await fh.createWritable();
     const data = {
       tagLibrary,
+      categories: catList,
       exportedAt: new Date().toISOString(),
       photoCount: photos.length,
       photos: photos.filter(p => p.tags && p.tags.length).map(p => ({ name: p.name, size: p.size, tags: p.tags }))
