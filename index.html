@@ -2582,6 +2582,11 @@ document.getElementById('gridLg').onclick = () => { document.getElementById('pho
 
 // KEYBOARD
 document.addEventListener('keydown', e => {
+  // Scanner modal
+  if (document.getElementById('scannerOverlay').classList.contains('open')) {
+    if (e.key === 'Escape') closeScannerModal();
+    return;
+  }
   // About modal first
   if (document.getElementById('aboutOverlay').classList.contains('open')) {
     if (e.key === 'Escape') closeAbout();
