@@ -311,6 +311,261 @@
   .cat-del { display: none; margin-left: 4px; color: var(--text-3); font-size: 12px; line-height: 1; cursor: pointer; }
   .cat-del:hover { color: #C25151; }
   .cat-header:hover .cat-del { display: inline; }
+
+  /* ==================== SCANNER MODAL & TABS ==================== */
+  .scanner-overlay {
+    display: none; position: fixed; inset: 0; z-index: 150;
+    background: var(--lb-bg); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .scanner-overlay.open { display: flex; }
+  .scanner-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 16px 40px var(--shadow-md);
+    width: 100%; max-width: 680px; max-height: 90vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: modalFadeIn 0.18s ease-out;
+  }
+  @keyframes modalFadeIn {
+    from { opacity: 0; transform: scale(0.97) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .scanner-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .scanner-title {
+    font-size: 15px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .scanner-title svg { color: var(--accent); }
+  .scanner-tabs {
+    display: flex; background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 0 16px; gap: 4px;
+  }
+  .scanner-tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    padding: 10px 14px; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
+    color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .scanner-tab:hover { color: var(--text); }
+  .scanner-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .scanner-body {
+    padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;
+  }
+  .bridge-status-bar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; color: var(--text);
+  }
+  .bridge-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: #9E9B97;
+    flex-shrink: 0; transition: background 0.2s;
+  }
+  .bridge-dot.online { background: #22C55E; box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+  .bridge-dot.offline { background: #EAB308; }
+  .bridge-dot.error { background: #EF4444; }
+  .bridge-offline-box {
+    padding: 16px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 10px;
+  }
+  .bridge-guide-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .bridge-guide-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+  .bridge-actions-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+  .bridge-auto-hint { font-size: 11px; color: var(--text-3); font-style: italic; }
+  .scanner-form-row { display: flex; flex-direction: column; gap: 6px; }
+  .scanner-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .scanner-form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
+  .scan-busy-label { display: inline-flex; align-items: center; gap: 8px; }
+  .scan-spinner {
+    width: 14px; height: 14px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: scanSpin 0.7s linear infinite; display: inline-block;
+  }
+  @keyframes scanSpin { to { transform: rotate(360deg); } }
+  .scan-result-card {
+    display: flex; gap: 16px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 14px; margin-top: 4px;
+  }
+  .scan-result-preview-wrap {
+    width: 200px; height: 240px; background: #000; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; position: relative;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .scan-result-preview-wrap img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    transition: transform 0.2s ease;
+  }
+  .scan-edit-tools {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 4px; background: rgba(0,0,0,0.65); padding: 3px 6px;
+    border-radius: 20px; backdrop-filter: blur(4px);
+  }
+  .scan-edit-tools .icon-btn {
+    width: 26px; height: 26px; border: none; background: transparent; color: white;
+  }
+  .scan-edit-tools .icon-btn:hover { background: rgba(255,255,255,0.2); }
+  .scan-result-details { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .scanned-meta-chips { display: flex; gap: 6px; font-size: 11.5px; color: var(--text-2); }
+  .scan-tags-pills { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
+  .scan-intake-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+  .hid-box, .camera-box { padding: 10px 0; }
+  .hid-log {
+    margin-top: 10px; font-family: monospace; font-size: 11.5px; color: var(--text-2);
+    max-height: 140px; overflow-y: auto; background: var(--bg); padding: 8px; border-radius: var(--radius-sm);
+  }
+
+  /* ==================== DUPLICATE RESOLVER & MANAGER ==================== */
+  .dup-manager {
+    display: flex; flex-direction: column; flex: 1; overflow-y: auto; padding: 20px 24px;
+    gap: 16px; min-height: 0;
+  }
+  .dup-toolbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 18px; box-shadow: 0 2px 8px var(--shadow);
+  }
+  .dup-title-wrap { display: flex; flex-direction: column; gap: 2px; }
+  .dup-slider-wrap {
+    display: flex; align-items: center; gap: 10px; background: var(--bg);
+    padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  }
+  .dup-slider-label { font-size: 12.5px; color: var(--text-2); white-space: nowrap; }
+  .dup-slider-label strong { color: var(--accent); }
+  .dup-slider {
+    width: 120px; cursor: pointer; accent-color: var(--accent);
+  }
+  .dup-toolbar-right { display: flex; align-items: center; gap: 8px; }
+  .dup-batch-menu-wrap { position: relative; }
+  .dup-batch-dropdown {
+    position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 8px 24px var(--shadow-md);
+    padding: 4px; z-index: 200; display: none; min-width: 250px; flex-direction: column;
+  }
+  .dup-batch-dropdown.open { display: flex; }
+  .dup-progress-card, .dup-empty-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 20px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); text-align: center; gap: 10px;
+  }
+  .dup-progress-spinner {
+    width: 32px; height: 32px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: scanSpin 0.7s linear infinite; margin-bottom: 6px;
+  }
+  .dup-progress-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .dup-progress-sub { font-size: 13px; color: var(--text-3); max-width: 480px; }
+  .dup-progress-bar-wrap {
+    width: 260px; height: 6px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 3px; overflow: hidden; margin-top: 6px;
+  }
+  .dup-progress-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: width 0.15s; }
+  .dup-progress-count { font-size: 12px; color: var(--text-3); }
+  .dup-pair-card {
+    display: flex; flex-direction: column; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 4px 16px var(--shadow); overflow: hidden; flex: 1; min-height: 0;
+  }
+  .dup-pair-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+    gap: 12px; flex-wrap: wrap;
+  }
+  .dup-pair-counter { font-size: 13px; font-weight: 600; color: var(--text); }
+  .dup-similarity-badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent);
+  }
+  .dup-similarity-badge.high { background: rgba(34,197,94,0.12); color: #16A34A; border-color: #22C55E; }
+  .dup-similarity-badge.medium { background: rgba(234,179,8,0.12); color: #CA8A04; border-color: #EAB308; }
+  .dup-compare-stage {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;
+    flex: 1; min-height: 0;
+  }
+  .dup-photo-column {
+    display: flex; flex-direction: column; gap: 12px; min-width: 0;
+  }
+  .dup-photo-frame {
+    flex: 1; min-height: 300px; max-height: 480px; background: #000;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; cursor: crosshair;
+  }
+  .dup-photo-frame img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    transition: transform 0.08s ease-out; transform-origin: center center;
+    user-select: none;
+  }
+  .dup-photo-meta {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 12px;
+  }
+  .dup-meta-row { display: flex; justify-content: space-between; align-items: center; }
+  .dup-meta-label { color: var(--text-3); font-size: 11.5px; }
+  .dup-meta-value { color: var(--text); font-weight: 500; }
+  .dup-winner-badge {
+    display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px; background: rgba(34,197,94,0.15); color: #16A34A;
+  }
+  .dup-action-group {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .dup-keep-btn {
+    padding: 9px 12px; background: var(--accent); color: white; border: none;
+    border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer;
+    font-family: 'Inter', sans-serif; transition: background 0.15s; text-align: center;
+  }
+  .dup-keep-btn:hover { background: var(--accent-hover); }
+  .dup-merge-btn {
+    padding: 9px 12px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; cursor: pointer;
+    font-family: 'Inter', sans-serif; transition: all 0.15s; text-align: center;
+  }
+  .dup-merge-btn:hover { border-color: var(--border-strong); background: var(--bg); }
+  .dup-pair-footer {
+    padding: 12px 18px; border-top: 1px solid var(--border); background: var(--surface-2);
+    display: flex; justify-content: center;
+  }
+  .text-link-btn {
+    background: none; border: none; color: var(--accent); cursor: pointer;
+    text-decoration: underline; font-size: 12px; font-family: inherit; padding: 0;
+  }
+  .dup-clusters-grid {
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .dup-cluster-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 18px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .dup-cluster-header {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  .dup-cluster-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .dup-cluster-photos {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px;
+  }
+  .dup-card-item {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .dup-card-img-wrap {
+    height: 160px; background: #000; display: flex; align-items: center; justify-content: center;
+  }
+  .dup-card-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .dup-card-info { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; }
+  .dup-card-actions { padding: 6px 10px 10px; display: flex; gap: 6px; }
+  .dup-card-actions button { flex: 1; }
+
+  @media (max-width: 768px) {
+    .dup-compare-stage { grid-template-columns: 1fr; }
+    .dup-toolbar { flex-direction: column; align-items: stretch; }
+    .scanner-form-grid { grid-template-columns: 1fr; }
+    .scan-result-card { flex-direction: column; }
+    .scan-result-preview-wrap { width: 100%; height: 200px; }
+  }
 </style>
 <style id="catStyles"></style>
 </head>
@@ -327,6 +582,10 @@
   <button class="folder-btn" id="folderBtn">
     <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
     Open Folder
+  </button>
+  <button class="folder-btn" id="scanBtn" onclick="openScannerModal()" title="Scan photos from USB scanner or device">
+    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
+    Scan
   </button>
   <span class="folder-label" id="folderLabel">No folder selected</span>
   <input type="file" id="folderInput" webkitdirectory multiple accept="image/*,.tif,.tiff" style="display:none">
@@ -385,6 +644,10 @@
       <div class="sidebar-item" onclick="startSession()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         Tagging Session <span class="item-count" id="sessionCount">0</span>
+      </div>
+      <div class="sidebar-item" id="toolScan" onclick="openScannerModal()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
+        Scan Photos
       </div>
       <div class="sidebar-item" id="autoSaveBtn" onclick="toggleAutoSave()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -459,6 +722,110 @@
       </div>
       <div class="photo-grid" id="photoGrid"></div>
       <div class="photo-grid" id="folderGrid" style="display:none"></div>
+
+      <!-- DUPLICATE RESOLVER & MANAGER -->
+      <div class="dup-manager" id="dupManager" style="display:none">
+        <div class="dup-toolbar">
+          <div class="dup-title-wrap">
+            <div class="grid-title">Scanned Duplicate Finder</div>
+            <div class="grid-subtitle" id="dupSubtitle">Analyzing visual fingerprints...</div>
+          </div>
+          <div class="dup-slider-wrap">
+            <span class="dup-slider-label">Match Sensitivity: <strong id="dupThresholdVal">85%</strong></span>
+            <input type="range" class="dup-slider" id="dupThresholdSlider" min="70" max="98" value="85" oninput="onDupThresholdChange(this.value)">
+          </div>
+          <div class="dup-toolbar-right">
+            <div class="seg-toggle">
+              <button class="seg-btn active" id="dupBtnSplit" onclick="setDupViewMode('split')">Side-by-Side Resolver</button>
+              <button class="seg-btn" id="dupBtnGrid" onclick="setDupViewMode('grid')">Grouped Clusters</button>
+            </div>
+            <div class="dup-batch-menu-wrap">
+              <button class="export-btn" id="dupBatchBtn" onclick="toggleDupBatchMenu()">Auto-Resolve &#9662;</button>
+              <div class="dup-batch-dropdown" id="dupBatchDropdown">
+                <div class="ctx-item" onclick="autoResolveDups('resolution')">Keep Higher Resolution in each pair</div>
+                <div class="ctx-item" onclick="autoResolveDups('size')">Keep Larger File Size in each pair</div>
+                <div class="ctx-item" onclick="autoResolveDups('tags')">Keep Most Tagged in each pair</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROGRESS STATE -->
+        <div class="dup-progress-card" id="dupProgressCard" style="display:none">
+          <div class="dup-progress-spinner"></div>
+          <div class="dup-progress-title">Computing Perceptual Hashes for Scans&#8230;</div>
+          <div class="dup-progress-sub">Comparing shapes, luminance, and frequency transforms to detect non-identical scans</div>
+          <div class="dup-progress-bar-wrap"><div class="dup-progress-bar-fill" id="dupProgressBarFill"></div></div>
+          <div class="dup-progress-count" id="dupProgressCount">0 / 0</div>
+        </div>
+
+        <!-- EMPTY STATE -->
+        <div class="dup-empty-card" id="dupEmptyCard" style="display:none">
+          <svg width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <h3>No Duplicates Found</h3>
+          <p id="dupEmptyText">At the current sensitivity (85%), all photos appear distinct. Try lowering the sensitivity slider if you suspect subtle re-scans.</p>
+        </div>
+
+        <!-- SPLIT PAIR RESOLVER -->
+        <div class="dup-pair-card" id="dupPairCard" style="display:none">
+          <div class="dup-pair-header">
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="jb-btn" id="dupPrevPairBtn" onclick="navDupPair(-1)">&#8592; Prev Pair</button>
+              <span class="dup-pair-counter" id="dupPairCounter">Pair 1 of 1</span>
+              <button class="jb-btn" id="dupNextPairBtn" onclick="navDupPair(1)">Next Pair &#8594;</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="dup-similarity-badge high" id="dupSimilarityBadge">94% Visual Match</span>
+              <span class="dup-dismissed-link" id="dupDismissedLink" style="display:none;font-size:12px;color:var(--text-3)">
+                (<span id="dupDismissedCount">0</span> dismissed - <button onclick="resetDismissedPairs()" class="text-link-btn">Reset</button>)
+              </span>
+            </div>
+          </div>
+
+          <div class="dup-compare-stage" id="dupCompareStage">
+            <!-- PHOTO A (LEFT) -->
+            <div class="dup-photo-column" id="dupColA">
+              <div class="dup-photo-frame" id="dupFrameA">
+                <img id="dupImgA" src="" alt="Photo A">
+              </div>
+              <div class="dup-photo-meta" id="dupMetaA"></div>
+              <div class="dup-action-group">
+                <button class="dup-keep-btn" onclick="resolveCurrentPair('keepA')">
+                  Keep Photo A (Discard B)
+                </button>
+                <button class="dup-merge-btn" onclick="resolveCurrentPair('mergeKeepA')">
+                  Merge Tags &amp; Keep A
+                </button>
+              </div>
+            </div>
+
+            <!-- PHOTO B (RIGHT) -->
+            <div class="dup-photo-column" id="dupColB">
+              <div class="dup-photo-frame" id="dupFrameB">
+                <img id="dupImgB" src="" alt="Photo B">
+              </div>
+              <div class="dup-photo-meta" id="dupMetaB"></div>
+              <div class="dup-action-group">
+                <button class="dup-keep-btn" onclick="resolveCurrentPair('keepB')">
+                  Keep Photo B (Discard A)
+                </button>
+                <button class="dup-merge-btn" onclick="resolveCurrentPair('mergeKeepB')">
+                  Merge Tags &amp; Keep B
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="dup-pair-footer">
+            <button class="jb-btn" onclick="resolveCurrentPair('keepBoth')">
+              Keep Both (Not Duplicates &mdash; Don't Ask Again)
+            </button>
+          </div>
+        </div>
+
+        <!-- GROUPED CLUSTERS GRID -->
+        <div class="dup-clusters-grid" id="dupClustersGrid" style="display:none"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -579,6 +946,163 @@
     <h3>Privacy &amp; storage</h3>
     <p>Everything is processed in your browser. Thumbnails, tags and preferences are stored locally (IndexedDB &amp; browser storage). Nothing is uploaded anywhere.</p>
   </div>
+<!-- SCANNER MODAL -->
+<div class="scanner-overlay" id="scannerOverlay">
+  <div class="scanner-card">
+    <div class="scanner-header">
+      <div class="scanner-title">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
+        Scan Photos
+      </div>
+      <button class="about-close" onclick="closeScannerModal()">&#x2715;</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="scanner-tabs">
+      <button class="scanner-tab active" id="tabBridgeBtn" onclick="switchScannerTab('bridge')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        USB Scanner (Bridge)
+      </button>
+      <button class="scanner-tab" id="tabHidBtn" onclick="switchScannerTab('hid')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M5 19a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+        Direct WebHID
+      </button>
+      <button class="scanner-tab" id="tabCameraBtn" onclick="switchScannerTab('camera')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Camera Scan
+      </button>
+    </div>
+
+    <div class="scanner-body">
+      <!-- TAB 1: BRIDGE SCANNER -->
+      <div class="scanner-pane" id="paneBridge">
+        <!-- STATUS BANNER -->
+        <div class="bridge-status-bar" id="bridgeStatusBar">
+          <div class="bridge-dot" id="bridgeDot"></div>
+          <div class="bridge-status-text" id="bridgeStatusText">Checking scanner bridge...</div>
+          <button class="jb-btn" id="bridgeRefreshBtn" onclick="checkScannerBridge(true)" style="margin-left:auto">Refresh</button>
+        </div>
+
+        <!-- WHEN BRIDGE IS OFFLINE -->
+        <div class="bridge-offline-box" id="bridgeOfflineBox" style="display:none">
+          <div class="bridge-guide-title">Connecting Scanners to GitHub Pages</div>
+          <p class="bridge-guide-desc">Web browsers prevent web pages from directly claiming USB scanner hardware due to OS driver locks. Run the lightweight local helper on your computer to bridge your scanner directly into PhotoVault.</p>
+          <div class="bridge-actions-row">
+            <a class="empty-cta" href="scanner-bridge/PhotoVaultScannerBridge.exe" download style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Windows .exe (25 KB)
+            </a>
+            <a class="jb-btn" href="scanner-bridge/run-scanner-bridge.bat" download style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+              Download .bat Launcher
+            </a>
+            <button class="jb-btn" onclick="checkScannerBridge(true)">Check Connection</button>
+          </div>
+          <div class="bridge-auto-hint">Auto-detecting... keep this window open and start the bridge.</div>
+        </div>
+
+        <!-- WHEN BRIDGE IS ONLINE -->
+        <div class="bridge-online-box" id="bridgeOnlineBox" style="display:none">
+          <div class="scanner-form-row">
+            <label class="scanner-form-label">Scanner Device</label>
+            <select class="cat-select" id="scannerSelect" style="margin-bottom:0"></select>
+          </div>
+          <div class="scanner-form-grid" style="margin-top:10px">
+            <div>
+              <label class="scanner-form-label">Resolution</label>
+              <div class="seg-toggle" style="width:100%">
+                <button class="seg-btn" id="dpi150" onclick="setScanDpi(150)">150 DPI</button>
+                <button class="seg-btn active" id="dpi300" onclick="setScanDpi(300)">300 DPI</button>
+                <button class="seg-btn" id="dpi600" onclick="setScanDpi(600)">600 DPI</button>
+              </div>
+            </div>
+            <div>
+              <label class="scanner-form-label">Color Mode</label>
+              <div class="seg-toggle" style="width:100%">
+                <button class="seg-btn active" id="modeColor" onclick="setScanMode('color')">Full Color</button>
+                <button class="seg-btn" id="modeGray" onclick="setScanMode('grayscale')">Grayscale</button>
+                <button class="seg-btn" id="modeBw" onclick="setScanMode('bw')">B &amp; W</button>
+              </div>
+            </div>
+          </div>
+          <div class="scanner-option-row" style="margin-top:10px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2);cursor:pointer">
+              <input type="checkbox" id="scanShowDialog"> Show scanner adjustment dialog before scanning
+            </label>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+            <button class="empty-cta" id="startScanBtn" onclick="triggerScan()" style="padding:10px 24px;display:inline-flex;align-items:center;gap:8px">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
+              <span>Scan Photo</span>
+            </button>
+            <span class="scan-busy-label" id="scanBusyLabel" style="display:none;font-size:12.5px;color:var(--accent);font-weight:500">
+              <span class="scan-spinner"></span> Scanning in progress&#8230;
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: WEBHID DIRECT -->
+      <div class="scanner-pane" id="paneHid" style="display:none">
+        <div class="hid-box">
+          <div class="bridge-guide-title">Direct WebHID Device Access</div>
+          <p class="bridge-guide-desc">For USB Barcode Scanners, Handheld Wand Scanners, and USB HID Imaging devices supported directly by browser WebHID.</p>
+          <button class="empty-cta" onclick="requestWebHidDevice()" style="margin-top:10px">
+            Select &amp; Connect WebHID Device
+          </button>
+          <div id="hidStatusLog" class="hid-log">Waiting for WebHID device connection...</div>
+        </div>
+      </div>
+
+      <!-- TAB 3: CAMERA SCAN -->
+      <div class="scanner-pane" id="paneCamera" style="display:none">
+        <div class="camera-box">
+          <video id="cameraVideo" autoplay playsinline style="width:100%;max-height:280px;border-radius:var(--radius-sm);background:#000;object-fit:contain"></video>
+          <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+            <button class="empty-cta" onclick="captureCameraPhoto()">Capture Photo</button>
+            <button class="jb-btn" onclick="stopCameraStream()">Stop Camera</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCANNED RESULT INTAKE & REVIEW -->
+      <div class="scan-result-card" id="scanResultCard" style="display:none">
+        <div class="scan-result-preview-wrap">
+          <img id="scannedImgPreview" src="" alt="Scanned Photo">
+          <div class="scan-edit-tools">
+            <button class="icon-btn" onclick="rotateScannedImage(-90)" title="Rotate Left 90°">↶</button>
+            <button class="icon-btn" onclick="rotateScannedImage(90)" title="Rotate Right 90°">↷</button>
+            <button class="icon-btn" onclick="flipScannedImage('h')" title="Flip Horizontal">⇄</button>
+          </div>
+        </div>
+        <div class="scan-result-details">
+          <div class="scanner-form-row">
+            <label class="scanner-form-label">Filename</label>
+            <input class="add-tag-input" id="scannedFilename" type="text" style="width:100%">
+          </div>
+          <div class="scanned-meta-chips" id="scannedMetaChips"></div>
+          <div class="scanner-form-row">
+            <label class="scanner-form-label">Initial Tags</label>
+            <div style="display:flex;gap:6px">
+              <select class="cat-select" id="scanCatSelect" style="width:120px;margin-bottom:0">
+                <option value="person">&#128100; Person</option>
+                <option value="place">&#128205; Place</option>
+                <option value="year">&#128197; Year</option>
+                <option value="other" selected>&#127991; Other</option>
+              </select>
+              <input class="add-tag-input" id="scanTagInput" placeholder="Add tag and press Enter" list="tagSuggestionList">
+              <button class="add-tag-btn" onclick="addScannedTag()">Add</button>
+            </div>
+            <div class="scan-tags-pills" id="scannedTagsPills"></div>
+          </div>
+          <div class="scan-intake-actions">
+            <button class="empty-cta" id="saveScanToVaultBtn" onclick="saveScannedPhotoToVault()">Save &amp; Add to Vault</button>
+            <button class="jb-btn" onclick="downloadScannedPhoto()">Download JPEG</button>
+            <button class="jb-btn" onclick="resetScannedCard()">Scan Another</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -616,7 +1140,7 @@ let slideshowTimer = null;
 let ctxTag = null;
 
 const DB_NAME = 'photovault_v2';
-const DB_VER = 2; // v2 adds the 'previews' store (persistent thumbnail cache)
+const DB_VER = 3; // v3 adds 'hashes' store for perceptual visual fingerprints
 let db;
 
 // THEME
@@ -938,6 +1462,7 @@ function openDB() {
       if (!d.objectStoreNames.contains('photos')) d.createObjectStore('photos', { keyPath: 'id' });
       if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
       if (!d.objectStoreNames.contains('previews')) d.createObjectStore('previews', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('hashes')) d.createObjectStore('hashes', { keyPath: 'id' });
     };
     req.onsuccess = e => res(e.target.result);
     req.onerror = () => rej(req.error);
@@ -982,6 +1507,24 @@ function dbPutPreview(id, blob) {
   if (!db) return;
   try { db.transaction('previews', 'readwrite').objectStore('previews').put({ id, blob }); } catch (e) { /* quota or closed db — preview will regenerate */ }
 }
+function dbGetHash(id) {
+  return new Promise(res => {
+    if (!db) return res(null);
+    try {
+      const tx = db.transaction('hashes', 'readonly');
+      const req = tx.objectStore('hashes').get(id);
+      req.onsuccess = () => res(req.result ? req.result.hash : null);
+      req.onerror = () => res(null);
+    } catch (e) { res(null); }
+  });
+}
+function dbPutHash(id, hash) {
+  if (!db) return;
+  try {
+    const tx = db.transaction('hashes', 'readwrite');
+    tx.objectStore('hashes').put({ id, hash });
+  } catch (e) { /* quota or closed */ }
+}
 
 // INIT
 async function init() {
@@ -991,6 +1534,8 @@ async function init() {
   const savedCats = await dbLoadMeta('catList');
   if (Array.isArray(savedCats) && savedCats.length) catList = savedCats;
   if (!catList.some(c => c.id === 'other')) catList.push({ id: 'other', label: '🏷 Other' });
+  const savedDismissed = await dbLoadMeta('dismissedDups');
+  if (Array.isArray(savedDismissed)) dismissedDupPairs = new Set(savedDismissed);
   refreshCatStyles();
   rebuildCatSelects();
   setLbLibSort(lbLibSort, true);
@@ -1450,6 +1995,18 @@ function buildCard(photo) {
 // is active and nothing narrows the result (no drill-in, filter, or search).
 function renderGrid() {
   if (!photos.length) return;
+  if (currentView === 'duplicates') {
+    document.getElementById('photoGrid').style.display = 'none';
+    document.getElementById('folderGrid').style.display = 'none';
+    const gh = document.querySelector('.grid-header');
+    if (gh) gh.style.display = 'none';
+    document.getElementById('dupManager').style.display = 'flex';
+    openDuplicateManager();
+    return;
+  }
+  document.getElementById('dupManager').style.display = 'none';
+  const gh = document.querySelector('.grid-header');
+  if (gh) gh.style.display = 'flex';
   const folderMode = homeView === 'folders' && currentView === 'all' && !searchQuery && currentFolder === null && tagFilter.length === 0;
   document.getElementById('photoGrid').style.display = folderMode ? 'none' : 'grid';
   document.getElementById('folderGrid').style.display = folderMode ? 'grid' : 'none';
@@ -1711,9 +2268,13 @@ function updateSidebar() {
   const untagged = photos.filter(p => !p.tags || !p.tags.length).length;
   document.getElementById('untaggedCount').textContent = untagged;
   document.getElementById('sessionCount').textContent = untagged;
-  const sc = {};
-  photos.forEach(p => { sc[p.size] = (sc[p.size] || 0) + 1; });
-  document.getElementById('dupCount').textContent = photos.filter(p => sc[p.size] > 1).length;
+  if (typeof dupMatches !== 'undefined' && dupMatches.length > 0) {
+    document.getElementById('dupCount').textContent = dupMatches.length;
+  } else {
+    const sc = {};
+    photos.forEach(p => { sc[p.size] = (sc[p.size] || 0) + 1; });
+    document.getElementById('dupCount').textContent = photos.filter(p => sc[p.size] > 1).length;
+  }
   const tc = {};
   photos.forEach(p => { (p.tags || []).forEach(t => { tc[t.name] = (tc[t.name] || 0) + 1; }); });
   const byCat = {};
@@ -2273,6 +2834,1023 @@ async function writeAutoSave() {
     await w.write(JSON.stringify(data, null, 2));
     await w.close();
   } catch (e) { showToast('Auto-save failed'); }
+}
+
+// ==================== PERCEPTUAL HASHING & DUPLICATE ENGINE ====================
+let dupThreshold = 85;
+let dupMatches = [];
+let currentDupPairIndex = 0;
+let dupViewMode = 'split'; // 'split' | 'grid'
+let dismissedDupPairs = new Set();
+let isAnalyzingHashes = false;
+let hashAnalysisToken = 0;
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024, dm = 1;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+function countSetBits(n) {
+  let count = 0;
+  while (n > 0n) {
+    count += Number(n & 1n);
+    n >>= 1n;
+  }
+  return count;
+}
+
+// Computes 64-bit dHash + 64-bit DCT pHash -> 128-bit composite visual fingerprint
+async function computeImagePerceptualHash(blob) {
+  let bmp;
+  try {
+    bmp = await createImageBitmap(blob);
+  } catch (e) {
+    bmp = await new Promise((resolve, reject) => {
+      const img = new Image();
+      const u = URL.createObjectURL(blob);
+      img.onload = () => { URL.revokeObjectURL(u); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(u); reject(new Error('image decode failed')); };
+      img.src = u;
+    });
+  }
+
+  const origW = bmp.naturalWidth || bmp.width;
+  const origH = bmp.naturalHeight || bmp.height;
+  const ar = origW / Math.max(1, origH);
+
+  // 1. dHash (Difference Hash on 9x8 grayscale)
+  const dCanvas = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(9, 8) : document.createElement('canvas');
+  dCanvas.width = 9; dCanvas.height = 8;
+  const dCtx = dCanvas.getContext('2d', { willReadFrequently: true });
+  dCtx.drawImage(bmp, 0, 0, 9, 8);
+  const dData = dCtx.getImageData(0, 0, 9, 8).data;
+
+  let dhash = 0n;
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const iL = (y * 9 + x) * 4;
+      const iR = (y * 9 + (x + 1)) * 4;
+      const lumL = 0.299 * dData[iL] + 0.587 * dData[iL + 1] + 0.114 * dData[iL + 2];
+      const lumR = 0.299 * dData[iR] + 0.587 * dData[iR + 1] + 0.114 * dData[iR + 2];
+      dhash = (dhash << 1n) | (lumL > lumR ? 1n : 0n);
+    }
+  }
+
+  // 2. pHash (DCT Hash on 32x32 grayscale)
+  const pCanvas = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(32, 32) : document.createElement('canvas');
+  pCanvas.width = 32; pCanvas.height = 32;
+  const pCtx = pCanvas.getContext('2d', { willReadFrequently: true });
+  pCtx.drawImage(bmp, 0, 0, 32, 32);
+  const pData = pCtx.getImageData(0, 0, 32, 32).data;
+
+  if (bmp.close) bmp.close();
+
+  const matrix = [];
+  for (let y = 0; y < 32; y++) {
+    matrix[y] = new Float32Array(32);
+    for (let x = 0; x < 32; x++) {
+      const idx = (y * 32 + x) * 4;
+      matrix[y][x] = 0.299 * pData[idx] + 0.587 * pData[idx + 1] + 0.114 * pData[idx + 2];
+    }
+  }
+
+  // 2D DCT for 8x8 low frequencies
+  const N = 32;
+  const sqrtN = Math.sqrt(2 / N);
+  const sqrt1N = 1 / Math.sqrt(N);
+  const dct = [];
+  const acVals = [];
+
+  for (let u = 0; u < 8; u++) {
+    dct[u] = new Float32Array(8);
+    const cu = (u === 0) ? sqrt1N : sqrtN;
+    for (let v = 0; v < 8; v++) {
+      const cv = (v === 0) ? sqrt1N : sqrtN;
+      let sum = 0;
+      for (let x = 0; x < N; x++) {
+        const cosX = Math.cos(((2 * x + 1) * u * Math.PI) / (2 * N));
+        for (let y = 0; y < N; y++) {
+          const cosY = Math.cos(((2 * y + 1) * v * Math.PI) / (2 * N));
+          sum += matrix[x][y] * cosX * cosY;
+        }
+      }
+      const val = cu * cv * sum;
+      dct[u][v] = val;
+      if (u !== 0 || v !== 0) acVals.push(val);
+    }
+  }
+
+  // Median of 63 AC coefficients
+  const sorted = acVals.slice().sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] || 0;
+
+  let phash = 0n;
+  for (let u = 0; u < 8; u++) {
+    for (let v = 0; v < 8; v++) {
+      if (u === 0 && v === 0) continue;
+      phash = (phash << 1n) | (dct[u][v] > median ? 1n : 0n);
+    }
+  }
+
+  return {
+    dhash: dhash.toString(16).padStart(16, '0'),
+    phash: phash.toString(16).padStart(16, '0'),
+    ar: Number(ar.toFixed(3)),
+    w: origW,
+    h: origH
+  };
+}
+
+async function getOrComputePhotoHash(photo) {
+  if (photo.hashData) return photo.hashData;
+  const cached = await dbGetHash(photo.id);
+  if (cached) {
+    photo.hashData = cached;
+    if (cached.w && !photo.width) { photo.width = cached.w; photo.height = cached.h; }
+    return cached;
+  }
+  const blob = await getPreviewBlob(photo, false);
+  const hashData = await computeImagePerceptualHash(blob);
+  photo.hashData = hashData;
+  if (hashData.w && !photo.width) { photo.width = hashData.w; photo.height = hashData.h; }
+  dbPutHash(photo.id, hashData);
+  return hashData;
+}
+
+function compareHashes(h1, h2) {
+  const dDiff = countSetBits(BigInt('0x' + h1.dhash) ^ BigInt('0x' + h2.dhash));
+  const pDiff = countSetBits(BigInt('0x' + h1.phash) ^ BigInt('0x' + h2.phash));
+  let dist = dDiff + pDiff; // 0..127
+
+  // If aspect ratios differ significantly, apply penalty
+  if (h1.ar && h2.ar) {
+    const arDiff = Math.abs(h1.ar - h2.ar) / Math.max(h1.ar, h2.ar);
+    if (arDiff > 0.25) dist += Math.round(arDiff * 30);
+  }
+
+  const score = Math.max(0, Math.min(100, Math.round((1 - (dist / 127)) * 100)));
+  return { dist, score };
+}
+
+async function openDuplicateManager() {
+  document.getElementById('dupThresholdVal').textContent = dupThreshold + '%';
+  document.getElementById('dupThresholdSlider').value = dupThreshold;
+  
+  // Check if we need to compute perceptual hashes for any photos
+  const needCompute = photos.some(p => !p.hashData);
+  if (needCompute) {
+    await runHashAnalysis();
+  } else {
+    recalcDuplicateMatches();
+  }
+}
+
+async function runHashAnalysis() {
+  if (isAnalyzingHashes) return;
+  isAnalyzingHashes = true;
+  const myToken = ++hashAnalysisToken;
+
+  const card = document.getElementById('dupProgressCard');
+  const fill = document.getElementById('dupProgressBarFill');
+  const countLabel = document.getElementById('dupProgressCount');
+  card.style.display = 'flex';
+  document.getElementById('dupEmptyCard').style.display = 'none';
+  document.getElementById('dupPairCard').style.display = 'none';
+  document.getElementById('dupClustersGrid').style.display = 'none';
+
+  let done = 0;
+  const total = photos.length;
+  countLabel.textContent = `0 / ${total}`;
+
+  for (let i = 0; i < total; i++) {
+    if (myToken !== hashAnalysisToken) { isAnalyzingHashes = false; return; }
+    const p = photos[i];
+    try {
+      await getOrComputePhotoHash(p);
+    } catch (e) {
+      console.warn('Could not hash:', p.name, e);
+    }
+    done++;
+    if (i % 2 === 0 || i === total - 1) {
+      const pct = Math.round((done / total) * 100);
+      fill.style.width = pct + '%';
+      countLabel.textContent = `${done} / ${total} (${pct}%)`;
+      await new Promise(r => setTimeout(r, 0)); // yield
+    }
+  }
+
+  card.style.display = 'none';
+  isAnalyzingHashes = false;
+  recalcDuplicateMatches();
+}
+
+function recalcDuplicateMatches() {
+  dupMatches = [];
+  const n = photos.length;
+
+  for (let i = 0; i < n; i++) {
+    const p1 = photos[i];
+    if (!p1.hashData) continue;
+    for (let j = i + 1; j < n; j++) {
+      const p2 = photos[j];
+      if (!p2.hashData) continue;
+
+      const pairKey = p1.id < p2.id ? `${p1.id}:::${p2.id}` : `${p2.id}:::${p1.id}`;
+      if (dismissedDupPairs.has(pairKey)) continue;
+
+      const cmp = compareHashes(p1.hashData, p2.hashData);
+      if (cmp.score >= dupThreshold) {
+        dupMatches.push({ p1, p2, score: cmp.score, dist: cmp.dist, pairKey });
+      }
+    }
+  }
+
+  // Sort highest similarity first
+  dupMatches.sort((a, b) => b.score - a.score);
+
+  // Update counts
+  document.getElementById('dupCount').textContent = dupMatches.length;
+  const subtitle = document.getElementById('dupSubtitle');
+  if (dupMatches.length === 0) {
+    subtitle.textContent = `No duplicates at ${dupThreshold}% sensitivity`;
+  } else {
+    subtitle.textContent = `Found ${dupMatches.length} duplicate pair${dupMatches.length !== 1 ? 's' : ''}`;
+  }
+
+  // Dismissed counter link
+  const disLink = document.getElementById('dupDismissedLink');
+  if (dismissedDupPairs.size > 0) {
+    disLink.style.display = 'inline';
+    document.getElementById('dupDismissedCount').textContent = dismissedDupPairs.size;
+  } else {
+    disLink.style.display = 'none';
+  }
+
+  if (currentDupPairIndex >= dupMatches.length) {
+    currentDupPairIndex = Math.max(0, dupMatches.length - 1);
+  }
+
+  if (dupMatches.length === 0) {
+    document.getElementById('dupEmptyCard').style.display = 'flex';
+    document.getElementById('dupPairCard').style.display = 'none';
+    document.getElementById('dupClustersGrid').style.display = 'none';
+    document.getElementById('dupEmptyText').textContent = `At the current sensitivity (${dupThreshold}%), all photos appear distinct. Try lowering the sensitivity slider if you suspect subtle re-scans.`;
+  } else {
+    document.getElementById('dupEmptyCard').style.display = 'none';
+    if (dupViewMode === 'split') {
+      document.getElementById('dupPairCard').style.display = 'flex';
+      document.getElementById('dupClustersGrid').style.display = 'none';
+      renderDupPair();
+    } else {
+      document.getElementById('dupPairCard').style.display = 'none';
+      document.getElementById('dupClustersGrid').style.display = 'flex';
+      renderDupClustersGrid();
+    }
+  }
+}
+
+function onDupThresholdChange(val) {
+  dupThreshold = parseInt(val, 10);
+  document.getElementById('dupThresholdVal').textContent = dupThreshold + '%';
+  recalcDuplicateMatches();
+}
+
+function setDupViewMode(mode) {
+  dupViewMode = mode;
+  document.getElementById('dupBtnSplit').classList.toggle('active', mode === 'split');
+  document.getElementById('dupBtnGrid').classList.toggle('active', mode === 'grid');
+  if (dupMatches.length > 0) {
+    if (mode === 'split') {
+      document.getElementById('dupPairCard').style.display = 'flex';
+      document.getElementById('dupClustersGrid').style.display = 'none';
+      renderDupPair();
+    } else {
+      document.getElementById('dupPairCard').style.display = 'none';
+      document.getElementById('dupClustersGrid').style.display = 'flex';
+      renderDupClustersGrid();
+    }
+  }
+}
+
+function navDupPair(dir) {
+  if (!dupMatches.length) return;
+  currentDupPairIndex = (currentDupPairIndex + dir + dupMatches.length) % dupMatches.length;
+  renderDupPair();
+}
+
+function renderDupPair() {
+  const pair = dupMatches[currentDupPairIndex];
+  if (!pair) return;
+
+  const { p1, p2, score } = pair;
+  document.getElementById('dupPairCounter').textContent = `Pair ${currentDupPairIndex + 1} of ${dupMatches.length}`;
+  
+  const badge = document.getElementById('dupSimilarityBadge');
+  badge.textContent = `${score}% Visual Match`;
+  badge.className = 'dup-similarity-badge ' + (score >= 90 ? 'high' : 'medium');
+
+  // Load preview images
+  const imgA = document.getElementById('dupImgA');
+  const imgB = document.getElementById('dupImgB');
+  getThumbURL(p1).then(u => { imgA.src = u; });
+  getThumbURL(p2).then(u => { imgB.src = u; });
+
+  // Metadata comparisons
+  renderPhotoMetaBox('dupMetaA', p1, p2);
+  renderPhotoMetaBox('dupMetaB', p2, p1);
+
+  // Synchronized Zoom Loupe
+  setupSynchronizedLoupe();
+}
+
+function renderPhotoMetaBox(containerId, p, other) {
+  const el = document.getElementById(containerId);
+  const w = p.width || (p.hashData ? p.hashData.w : 0);
+  const h = p.height || (p.hashData ? p.hashData.h : 0);
+  const otherW = other.width || (other.hashData ? other.hashData.w : 0);
+  const otherH = other.height || (other.hashData ? other.hashData.h : 0);
+
+  const pixels = w * h;
+  const otherPixels = otherW * otherH;
+  const isHigherRes = pixels > otherPixels && otherPixels > 0;
+  const isLargerFile = p.size > other.size;
+  const tagsCount = (p.tags || []).length;
+  const otherTagsCount = (other.tags || []).length;
+  const isMoreTags = tagsCount > otherTagsCount;
+
+  let resHtml = `${w || '?'} &times; ${h || '?'}`;
+  if (pixels > 0) resHtml += ` (${(pixels / 1000000).toFixed(1)} MP)`;
+  if (isHigherRes) resHtml += ` <span class="dup-winner-badge">&#9733; Higher Res</span>`;
+
+  let sizeHtml = formatBytes(p.size);
+  if (isLargerFile) sizeHtml += ` <span class="dup-winner-badge">&#9733; Larger</span>`;
+
+  let tagsHtml = renderTagPills(p.tags || [], false) || '<span style="color:var(--text-3)">No tags</span>';
+  if (isMoreTags) tagsHtml += ` <span class="dup-winner-badge" style="margin-left:4px">&#9733; More tags</span>`;
+
+  const dateStr = p.file && p.file.lastModified ? new Date(p.file.lastModified).toLocaleDateString() : 'Unknown';
+
+  el.innerHTML = `
+    <div class="dup-meta-row">
+      <span class="dup-meta-label">File:</span>
+      <span class="dup-meta-value" title="${p.name}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+    </div>
+    <div class="dup-meta-row">
+      <span class="dup-meta-label">Resolution:</span>
+      <span class="dup-meta-value">${resHtml}</span>
+    </div>
+    <div class="dup-meta-row">
+      <span class="dup-meta-label">File Size:</span>
+      <span class="dup-meta-value">${sizeHtml}</span>
+    </div>
+    <div class="dup-meta-row">
+      <span class="dup-meta-label">Folder:</span>
+      <span class="dup-meta-value">${p.folder || '(root)'}</span>
+    </div>
+    <div class="dup-meta-row">
+      <span class="dup-meta-label">Modified:</span>
+      <span class="dup-meta-value">${dateStr}</span>
+    </div>
+    <div class="dup-meta-row" style="align-items:flex-start">
+      <span class="dup-meta-label" style="padding-top:2px">Tags:</span>
+      <div style="flex:1;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px">${tagsHtml}</div>
+    </div>
+  `;
+}
+
+function setupSynchronizedLoupe() {
+  const frameA = document.getElementById('dupFrameA');
+  const frameB = document.getElementById('dupFrameB');
+  const imgA = document.getElementById('dupImgA');
+  const imgB = document.getElementById('dupImgB');
+
+  function handleZoom(e, targetFrame) {
+    const rect = targetFrame.getBoundingClientRect();
+    const xPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const yPct = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    const transform = `scale(2.4)`;
+    const origin = `${xPct}% ${yPct}%`;
+    imgA.style.transform = transform;
+    imgA.style.transformOrigin = origin;
+    imgB.style.transform = transform;
+    imgB.style.transformOrigin = origin;
+  }
+
+  function resetZoom() {
+    imgA.style.transform = 'none';
+    imgA.style.transformOrigin = 'center center';
+    imgB.style.transform = 'none';
+    imgB.style.transformOrigin = 'center center';
+  }
+
+  frameA.onmousemove = (e) => handleZoom(e, frameA);
+  frameA.onmouseleave = resetZoom;
+  frameB.onmousemove = (e) => handleZoom(e, frameB);
+  frameB.onmouseleave = resetZoom;
+}
+
+async function resolveCurrentPair(action) {
+  const pair = dupMatches[currentDupPairIndex];
+  if (!pair) return;
+  const { p1, p2, pairKey } = pair;
+
+  if (action === 'keepBoth') {
+    dismissedDupPairs.add(pairKey);
+    await dbSaveMeta('dismissedDups', Array.from(dismissedDupPairs));
+    showToast('Marked as distinct photos');
+    recalcDuplicateMatches();
+    return;
+  }
+
+  const keepPhoto = (action === 'keepA' || action === 'mergeKeepA') ? p1 : p2;
+  const discardPhoto = (action === 'keepA' || action === 'mergeKeepA') ? p2 : p1;
+  const shouldMerge = (action === 'mergeKeepA' || action === 'mergeKeepB');
+
+  if (shouldMerge) {
+    const existing = new Set((keepPhoto.tags || []).map(t => t.name));
+    (discardPhoto.tags || []).forEach(t => {
+      if (!existing.has(t.name)) {
+        if (!keepPhoto.tags) keepPhoto.tags = [];
+        keepPhoto.tags.push({ name: t.name, cat: t.cat || 'other' });
+      }
+    });
+    await dbSavePhoto(keepPhoto);
+  }
+
+  await discardDuplicatePhoto(discardPhoto);
+  showToast(`Kept "${keepPhoto.name}", discarded duplicate "${discardPhoto.name}"`);
+  recalcDuplicateMatches();
+}
+
+async function discardDuplicatePhoto(photo) {
+  // If File System Access API handle is available, move to _photovault_duplicates/
+  if (rootHandle) {
+    try {
+      const dupFolderHandle = await rootHandle.getDirectoryHandle('_photovault_duplicates', { create: true });
+      const fileData = await photo.file.arrayBuffer();
+      const newFileHandle = await dupFolderHandle.getFileHandle(photo.name, { create: true });
+      const writable = await newFileHandle.createWritable();
+      await writable.write(fileData);
+      await writable.close();
+
+      // Remove from original directory
+      if (!photo.folder) {
+        await rootHandle.removeEntry(photo.name);
+      } else {
+        const parts = photo.folder.split('/').filter(Boolean);
+        let curr = rootHandle;
+        for (const part of parts) {
+          curr = await curr.getDirectoryHandle(part);
+        }
+        await curr.removeEntry(photo.name);
+      }
+    } catch (err) {
+      console.warn('Could not move duplicate to folder on disk:', err);
+    }
+  }
+
+  // Remove from in-memory photos
+  const idx = photos.findIndex(p => p.id === photo.id);
+  if (idx !== -1) photos.splice(idx, 1);
+
+  // Clean IndexedDB
+  if (db) {
+    try {
+      const tx = db.transaction(['photos', 'previews', 'hashes'], 'readwrite');
+      tx.objectStore('photos').delete(photo.id);
+      tx.objectStore('previews').delete(photo.id);
+      tx.objectStore('hashes').delete(photo.id);
+    } catch (e) {}
+  }
+
+  updateSidebar();
+}
+
+function toggleDupBatchMenu() {
+  document.getElementById('dupBatchDropdown').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dup-batch-menu-wrap')) {
+    const dd = document.getElementById('dupBatchDropdown');
+    if (dd) dd.classList.remove('open');
+  }
+});
+
+async function autoResolveDups(criteria) {
+  document.getElementById('dupBatchDropdown').classList.remove('open');
+  if (!dupMatches.length) return;
+  const count = dupMatches.length;
+  if (!confirm(`Auto-resolve ${count} duplicate pair${count !== 1 ? 's' : ''} by "${criteria}"? Discarded files will be moved to _photovault_duplicates.`)) return;
+
+  const toDiscard = new Set();
+  const keepMergeMap = new Map(); // keepPhoto -> Array of discardPhotos to merge
+
+  for (const pair of dupMatches) {
+    const { p1, p2 } = pair;
+    if (toDiscard.has(p1.id) || toDiscard.has(p2.id)) continue;
+
+    let keepPhoto = p1, discardPhoto = p2;
+
+    if (criteria === 'resolution') {
+      const w1 = p1.width || (p1.hashData ? p1.hashData.w : 0);
+      const h1 = p1.height || (p1.hashData ? p1.hashData.h : 0);
+      const w2 = p2.width || (p2.hashData ? p2.hashData.w : 0);
+      const h2 = p2.height || (p2.hashData ? p2.hashData.h : 0);
+      if ((w2 * h2) > (w1 * h1)) { keepPhoto = p2; discardPhoto = p1; }
+    } else if (criteria === 'size') {
+      if (p2.size > p1.size) { keepPhoto = p2; discardPhoto = p1; }
+    } else if (criteria === 'tags') {
+      if ((p2.tags || []).length > (p1.tags || []).length) { keepPhoto = p2; discardPhoto = p1; }
+    }
+
+    toDiscard.add(discardPhoto.id);
+    if (!keepMergeMap.has(keepPhoto)) keepMergeMap.set(keepPhoto, []);
+    keepMergeMap.get(keepPhoto).push(discardPhoto);
+  }
+
+  // Execute tag merges & discards
+  for (const [keepPhoto, discardList] of keepMergeMap.entries()) {
+    const existing = new Set((keepPhoto.tags || []).map(t => t.name));
+    for (const dp of discardList) {
+      (dp.tags || []).forEach(t => {
+        if (!existing.has(t.name)) {
+          if (!keepPhoto.tags) keepPhoto.tags = [];
+          keepPhoto.tags.push({ name: t.name, cat: t.cat || 'other' });
+        }
+      });
+      await discardDuplicatePhoto(dp);
+    }
+    await dbSavePhoto(keepPhoto);
+  }
+
+  showToast(`Auto-resolved ${toDiscard.size} duplicate photo${toDiscard.size !== 1 ? 's' : ''}`);
+  recalcDuplicateMatches();
+}
+
+async function resetDismissedPairs() {
+  dismissedDupPairs.clear();
+  await dbSaveMeta('dismissedDups', []);
+  showToast('Reset dismissed duplicate pairs');
+  recalcDuplicateMatches();
+}
+
+function renderDupClustersGrid() {
+  const container = document.getElementById('dupClustersGrid');
+  container.innerHTML = '';
+
+  // Group matches into clusters
+  const clusters = [];
+  const visited = new Set();
+
+  dupMatches.forEach(m => {
+    let cluster = clusters.find(c => c.some(p => p.id === m.p1.id || p.id === m.p2.id));
+    if (!cluster) {
+      cluster = [];
+      clusters.push(cluster);
+    }
+    if (!cluster.some(p => p.id === m.p1.id)) cluster.push(m.p1);
+    if (!cluster.some(p => p.id === m.p2.id)) cluster.push(m.p2);
+  });
+
+  clusters.forEach((cluster, idx) => {
+    const card = document.createElement('div');
+    card.className = 'dup-cluster-card';
+    card.innerHTML = `
+      <div class="dup-cluster-header">
+        <span class="dup-cluster-title">Group #${idx + 1} &middot; ${cluster.length} photos</span>
+      </div>
+      <div class="dup-cluster-photos" id="clusterPhotos_${idx}"></div>
+    `;
+    container.appendChild(card);
+
+    const photosWrap = card.querySelector(`#clusterPhotos_${idx}`);
+    cluster.forEach(photo => {
+      const item = document.createElement('div');
+      item.className = 'dup-card-item';
+      item.innerHTML = `
+        <div class="dup-card-img-wrap"><img src="" alt="${photo.name}" id="dupGridImg_${photo.id}"></div>
+        <div class="dup-card-info">
+          <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${photo.name}</div>
+          <div>${formatBytes(photo.size)} &middot; ${photo.width || '?'}x${photo.height || '?'}</div>
+        </div>
+        <div class="dup-card-actions">
+          <button class="jb-btn jb-yes" onclick="resolveClusterKeepSingle('${photo.id}', [${cluster.map(p => `'${p.id}'`).join(',')}])">Keep This</button>
+          <button class="jb-btn" onclick="discardClusterPhoto('${photo.id}')">Discard</button>
+        </div>
+      `;
+      photosWrap.appendChild(item);
+      getThumbURL(photo).then(u => {
+        const im = item.querySelector('img');
+        if (im) im.src = u;
+      });
+    });
+  });
+}
+
+async function resolveClusterKeepSingle(keepId, clusterIds) {
+  const keepPhoto = photos.find(p => p.id === keepId);
+  if (!keepPhoto) return;
+  const toDiscard = photos.filter(p => clusterIds.includes(p.id) && p.id !== keepId);
+  const existing = new Set((keepPhoto.tags || []).map(t => t.name));
+
+  for (const dp of toDiscard) {
+    (dp.tags || []).forEach(t => {
+      if (!existing.has(t.name)) {
+        if (!keepPhoto.tags) keepPhoto.tags = [];
+        keepPhoto.tags.push({ name: t.name, cat: t.cat || 'other' });
+      }
+    });
+    await discardDuplicatePhoto(dp);
+  }
+  await dbSavePhoto(keepPhoto);
+  showToast(`Kept "${keepPhoto.name}", discarded ${toDiscard.length} duplicates`);
+  recalcDuplicateMatches();
+}
+
+async function discardClusterPhoto(photoId) {
+  const p = photos.find(x => x.id === photoId);
+  if (!p) return;
+  await discardDuplicatePhoto(p);
+  showToast(`Discarded "${p.name}"`);
+  recalcDuplicateMatches();
+}
+
+// ==================== USB SCANNER BRIDGE & WEBHID SYSTEM ====================
+const SCANNER_BRIDGE_URL = 'http://127.0.0.1:18205';
+let scannerBridgeOnline = false;
+let scannerDevices = [];
+let selectedScannerId = '';
+let scanDpi = 300;
+let scanColorMode = 'color';
+let scanCheckTimer = null;
+let scannedImageData = null;
+let scannedImageWidth = 0;
+let scannedImageHeight = 0;
+let scannedImageRotation = 0;
+let scannedTags = [];
+let cameraStream = null;
+let connectedHidDevice = null;
+
+function openScannerModal() {
+  document.getElementById('scannerOverlay').classList.add('open');
+  switchScannerTab('bridge');
+  checkScannerBridge();
+  // Auto-poll bridge status every 3s while modal is open
+  clearInterval(scanCheckTimer);
+  scanCheckTimer = setInterval(() => {
+    if (!scannerBridgeOnline) checkScannerBridge(false);
+  }, 3000);
+}
+
+function closeScannerModal() {
+  document.getElementById('scannerOverlay').classList.remove('open');
+  clearInterval(scanCheckTimer);
+  stopCameraStream();
+}
+
+document.getElementById('scannerOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'scannerOverlay') closeScannerModal();
+});
+
+function switchScannerTab(tab) {
+  ['Bridge', 'Hid', 'Camera'].forEach(t => {
+    const btn = document.getElementById(`tab${t}Btn`);
+    const pane = document.getElementById(`pane${t}`);
+    if (btn) btn.classList.toggle('active', t.toLowerCase() === tab);
+    if (pane) pane.style.display = (t.toLowerCase() === tab) ? 'block' : 'none';
+  });
+
+  if (tab === 'camera') startCameraStream();
+  else stopCameraStream();
+}
+
+async function checkScannerBridge(isManual) {
+  const dot = document.getElementById('bridgeDot');
+  const text = document.getElementById('bridgeStatusText');
+  const offlineBox = document.getElementById('bridgeOfflineBox');
+  const onlineBox = document.getElementById('bridgeOnlineBox');
+
+  if (isManual) text.textContent = 'Connecting to bridge on 127.0.0.1:18205...';
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(`${SCANNER_BRIDGE_URL}/status`, {
+      method: 'GET',
+      headers: { 'Access-Control-Request-Private-Network': 'true' },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const data = await res.json();
+      scannerBridgeOnline = true;
+      dot.className = 'bridge-dot online';
+      scannerDevices = data.devices || [];
+
+      const select = document.getElementById('scannerSelect');
+      select.innerHTML = '';
+      if (scannerDevices.length > 0) {
+        scannerDevices.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.id;
+          opt.textContent = `${d.name} (${d.id})`;
+          select.appendChild(opt);
+        });
+        selectedScannerId = scannerDevices[0].id;
+        text.textContent = `Bridge Connected &middot; ${scannerDevices.length} scanner${scannerDevices.length !== 1 ? 's' : ''} available`;
+      } else {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Default Windows Scanner';
+        select.appendChild(opt);
+        text.textContent = 'Bridge Connected &middot; Default Scanner';
+      }
+
+      offlineBox.style.display = 'none';
+      onlineBox.style.display = 'block';
+      if (isManual) showToast('Scanner bridge connected!');
+      return;
+    }
+  } catch (err) {
+    // Bridge is offline
+  }
+
+  scannerBridgeOnline = false;
+  dot.className = 'bridge-dot offline';
+  text.textContent = 'Scanner Bridge Offline (port 18205)';
+  offlineBox.style.display = 'block';
+  onlineBox.style.display = 'none';
+  if (isManual) showToast('Scanner bridge not found on port 18205');
+}
+
+function setScanDpi(dpi) {
+  scanDpi = dpi;
+  [150, 300, 600].forEach(d => {
+    const btn = document.getElementById(`dpi${d}`);
+    if (btn) btn.classList.toggle('active', d === dpi);
+  });
+}
+
+function setScanMode(mode) {
+  scanColorMode = mode;
+  document.getElementById('modeColor').classList.toggle('active', mode === 'color');
+  document.getElementById('modeGray').classList.toggle('active', mode === 'grayscale');
+  document.getElementById('modeBw').classList.toggle('active', mode === 'bw');
+}
+
+async function triggerScan() {
+  const scanBtn = document.getElementById('startScanBtn');
+  const busyLabel = document.getElementById('scanBusyLabel');
+  const showDialog = document.getElementById('scanShowDialog').checked;
+  const select = document.getElementById('scannerSelect');
+  const deviceId = select ? select.value : '';
+
+  scanBtn.disabled = true;
+  busyLabel.style.display = 'inline-flex';
+
+  try {
+    const payload = {
+      dpi: scanDpi,
+      colorMode: scanColorMode,
+      showDialog,
+      deviceId
+    };
+
+    const res = await fetch(`${SCANNER_BRIDGE_URL}/scan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Request-Private-Network': 'true'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (data.success && data.data) {
+      handleScanAcquired(data.data, data.width, data.height);
+      showToast('Scan acquired successfully!');
+    } else {
+      showToast('Scan error: ' + (data.error || 'No image acquired'));
+    }
+  } catch (err) {
+    showToast('Failed to communicate with scanner bridge: ' + err.message);
+  } finally {
+    scanBtn.disabled = false;
+    busyLabel.style.display = 'none';
+  }
+}
+
+function handleScanAcquired(dataUrl, width, height) {
+  scannedImageData = dataUrl;
+  scannedImageWidth = width || 0;
+  scannedImageHeight = height || 0;
+  scannedImageRotation = 0;
+  scannedTags = [];
+
+  const preview = document.getElementById('scannedImgPreview');
+  preview.src = dataUrl;
+  preview.style.transform = 'none';
+
+  // Default suggested filename: Scan_YYYYMMDD_HHMMSS.jpg
+  const now = new Date();
+  const ymd = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const hms = now.toTimeString().slice(0, 8).replace(/:/g, '');
+  document.getElementById('scannedFilename').value = `Scan_${ymd}_${hms}.jpg`;
+
+  // Meta chips
+  const chips = document.getElementById('scannedMetaChips');
+  chips.innerHTML = `
+    <span>${width || '?'} &times; ${height || '?'} px</span>
+    <span>&bull;</span>
+    <span>${scanColorMode.toUpperCase()}</span>
+    <span>&bull;</span>
+    <span>${scanDpi} DPI</span>
+  `;
+
+  renderScannedTagPills();
+  document.getElementById('scanResultCard').style.display = 'flex';
+}
+
+function rotateScannedImage(deg) {
+  scannedImageRotation = (scannedImageRotation + deg) % 360;
+  const preview = document.getElementById('scannedImgPreview');
+  preview.style.transform = `rotate(${scannedImageRotation}deg)`;
+}
+
+function flipScannedImage(dir) {
+  const preview = document.getElementById('scannedImgPreview');
+  preview.style.transform = (preview.style.transform.includes('scaleX(-1)') ? 'none' : 'scaleX(-1)') + ` rotate(${scannedImageRotation}deg)`;
+}
+
+function addScannedTag() {
+  const input = document.getElementById('scanTagInput');
+  const cat = document.getElementById('scanCatSelect').value;
+  const name = input.value.trim();
+  if (!name) return;
+  if (!scannedTags.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+    scannedTags.push({ name, cat });
+    renderScannedTagPills();
+  }
+  input.value = '';
+}
+
+function removeScannedTag(idx) {
+  scannedTags.splice(idx, 1);
+  renderScannedTagPills();
+}
+
+function renderScannedTagPills() {
+  const container = document.getElementById('scannedTagsPills');
+  container.innerHTML = scannedTags.map((t, idx) => `
+    <span class="tag-pill ${t.cat || 'other'}">
+      #${t.name}
+      <span class="remove-tag" onclick="removeScannedTag(${idx})">&times;</span>
+    </span>
+  `).join('');
+}
+
+function resetScannedCard() {
+  scannedImageData = null;
+  document.getElementById('scanResultCard').style.display = 'none';
+}
+
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function downloadScannedPhoto() {
+  if (!scannedImageData) return;
+  const filename = document.getElementById('scannedFilename').value.trim() || 'Scan.jpg';
+  downloadDataUrl(scannedImageData, filename);
+  showToast(`Downloaded "${filename}"`);
+}
+
+async function saveScannedPhotoToVault() {
+  if (!scannedImageData) return;
+  const filename = document.getElementById('scannedFilename').value.trim() || `Scan_${Date.now()}.jpg`;
+
+  // Convert base64 data to blob
+  const base64Data = scannedImageData.split(',')[1];
+  const binary = atob(base64Data);
+  const array = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+  const blob = new Blob([array], { type: 'image/jpeg' });
+  const file = new File([blob], filename, { type: 'image/jpeg', lastModified: Date.now() });
+
+  // If rootHandle is available, write directly to user's folder on disk
+  if (rootHandle) {
+    try {
+      const fileHandle = await rootHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      showToast(`Saved "${filename}" directly to your folder!`);
+    } catch (e) {
+      console.warn('Could not write directly to disk:', e);
+      downloadDataUrl(scannedImageData, filename);
+    }
+  } else {
+    downloadDataUrl(scannedImageData, filename);
+    showToast(`Downloaded "${filename}" and added to current vault`);
+  }
+
+  // Create photo object in vault
+  const id = filename + '_' + blob.size;
+  const newPhoto = {
+    id,
+    name: filename,
+    size: blob.size,
+    file,
+    folder: currentFolder || '',
+    tags: scannedTags.slice(),
+    isTiff: false,
+    width: scannedImageWidth || 0,
+    height: scannedImageHeight || 0
+  };
+
+  photos.unshift(newPhoto);
+  dbPutPreview(id, blob);
+  dbSavePhoto(newPhoto);
+
+  closeScannerModal();
+  updateSidebar();
+  renderGrid();
+}
+
+// WebHID Direct support
+async function requestWebHidDevice() {
+  const log = document.getElementById('hidStatusLog');
+  if (!navigator.hid) {
+    log.innerHTML = '<span style="color:#EF4444">WebHID is not supported in this browser. Use Chrome or Edge over HTTPS.</span>';
+    return;
+  }
+  try {
+    log.innerHTML = 'Prompting WebHID device selector...';
+    const devices = await navigator.hid.requestDevice({ filters: [] });
+    if (!devices || devices.length === 0) {
+      log.innerHTML = 'No WebHID device selected.';
+      return;
+    }
+    const dev = devices[0];
+    await dev.open();
+    connectedHidDevice = dev;
+    log.innerHTML = `
+      <span style="color:#22C55E">Connected to WebHID Device:</span><br>
+      Name: ${dev.productName || 'Unknown Device'}<br>
+      Vendor ID: 0x${dev.vendorId.toString(16)} | Product ID: 0x${dev.productId.toString(16)}<br>
+      Listening for input reports...
+    `;
+    dev.oninputreport = (e) => {
+      const raw = new Uint8Array(e.data.buffer);
+      log.innerHTML += `<br>[Report ${e.reportId}] ${raw.length} bytes received`;
+    };
+  } catch (err) {
+    log.innerHTML = `<span style="color:#EF4444">WebHID Error: ${err.message}</span>`;
+  }
+}
+
+// Camera scanning
+async function startCameraStream() {
+  const video = document.getElementById('cameraVideo');
+  if (cameraStream) return;
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1920 }, height: { ideal: 1080 } }
+    });
+    video.srcObject = cameraStream;
+  } catch (err) {
+    console.warn('Camera access error:', err);
+  }
+}
+
+function stopCameraStream() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+    const video = document.getElementById('cameraVideo');
+    if (video) video.srcObject = null;
+  }
+}
+
+function captureCameraPhoto() {
+  const video = document.getElementById('cameraVideo');
+  if (!video || !video.videoWidth) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+  handleScanAcquired(dataUrl, canvas.width, canvas.height);
 }
 
 init();
