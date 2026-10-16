@@ -3946,6 +3946,34 @@ async function triggerScan(isPreview = true) {
   }
 }
 
+function getRawScannerCrop() {
+  let { x, y, w, h } = studioCrop;
+  const rot = (studioRotation % 360 + 360) % 360;
+  if (rot === 90) {
+    return {
+      x: Math.max(0, Math.min(1, 1 - (y + h))),
+      y: Math.max(0, Math.min(1, x)),
+      w: Math.max(0.01, Math.min(1, h)),
+      h: Math.max(0.01, Math.min(1, w))
+    };
+  } else if (rot === 180) {
+    return {
+      x: Math.max(0, Math.min(1, 1 - (x + w))),
+      y: Math.max(0, Math.min(1, 1 - (y + h))),
+      w: Math.max(0.01, Math.min(1, w)),
+      h: Math.max(0.01, Math.min(1, h))
+    };
+  } else if (rot === 270) {
+    return {
+      x: Math.max(0, Math.min(1, y)),
+      y: Math.max(0, Math.min(1, 1 - (x + w))),
+      w: Math.max(0.01, Math.min(1, h)),
+      h: Math.max(0.01, Math.min(1, w))
+    };
+  }
+  return { x, y, w, h };
+}
+
 async function triggerCroppedScan() {
   const activeBox = document.getElementById('scanActiveBox');
   const statusText = document.getElementById('scanActiveStatusText');
@@ -3963,16 +3991,12 @@ async function triggerCroppedScan() {
   statusText.textContent = `🎯 Scanning optical sensor carriage over cropped photo (${inW}" \u00D7 ${inH}") at ${scanDpi} DPI (${scanFormat.toUpperCase()}${scanFormat === 'tiff' ? ' RAW' : ''}). Zero external windows.`;
 
   try {
+    const rawCrop = getRawScannerCrop();
     const payload = {
       dpi: scanDpi,
       colorMode: scanColorMode,
       format: scanFormat,
-      crop: {
-        x: studioCrop.x,
-        y: studioCrop.y,
-        w: studioCrop.w,
-        h: studioCrop.h
-      },
+      crop: rawCrop,
       deviceId
     };
 
@@ -4298,81 +4322,166 @@ function autoCropPhoto() {
     const imgData = tCtx.getImageData(0, 0, sw, sh);
     const d = imgData.data;
 
-    let bgR = 0, bgG = 0, bgB = 0, bgSamples = 0;
+    // 1. Dominant background color via 3D color histogram (unpolluted by photo location)
+    const bins = new Uint32Array(16 * 16 * 16);
+    const sumR = new Float64Array(16 * 16 * 16);
+    const sumG = new Float64Array(16 * 16 * 16);
+    const sumB = new Float64Array(16 * 16 * 16);
+
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const bin = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+      bins[bin]++;
+      sumR[bin] += r;
+      sumG[bin] += g;
+      sumB[bin] += b;
+    }
+
+    let maxCount = 0, maxBin = 0;
+    for (let i = 0; i < bins.length; i++) {
+      if (bins[i] > maxCount) {
+        maxCount = bins[i];
+        maxBin = i;
+      }
+    }
+
+    const bgR = sumR[maxBin] / maxCount;
+    const bgG = sumG[maxBin] / maxCount;
+    const bgB = sumB[maxBin] / maxCount;
+
+    // 2. Classify foreground (photo) pixels
+    const fg = new Uint8Array(sw * sh);
+    const diffThreshold = 18;
+
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        const idx = (y * sw + x) * 4;
+        const dr = d[idx] - bgR;
+        const dg = d[idx + 1] - bgG;
+        const db = d[idx + 2] - bgB;
+        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+        if (dist > diffThreshold) {
+          fg[y * sw + x] = 1;
+        }
+      }
+    }
+
+    // 3. Remove narrow 1-2px physical bezel shadow artifacts along bed outer perimeter
+    // An empty bed edge has a 1-2px dark line immediately followed by background.
+    // If a photo touches the edge, the foreground continues deep into the bed.
     for (let x = 0; x < sw; x++) {
-      for (let y = 0; y < 3; y++) {
-        const i1 = (y * sw + x) * 4;
-        const i2 = ((sh - 1 - y) * sw + x) * 4;
-        bgR += d[i1] + d[i2]; bgG += d[i1+1] + d[i2+1]; bgB += d[i1+2] + d[i2+2];
-        bgSamples += 2;
+      if (fg[0 * sw + x] && !fg[3 * sw + x] && !fg[4 * sw + x]) {
+        fg[0 * sw + x] = 0; fg[1 * sw + x] = 0;
+      }
+      if (fg[(sh - 1) * sw + x] && !fg[(sh - 4) * sw + x] && !fg[(sh - 5) * sw + x]) {
+        fg[(sh - 1) * sw + x] = 0; fg[(sh - 2) * sw + x] = 0;
       }
     }
-    for (let y = 3; y < sh - 3; y++) {
-      for (let x = 0; x < 3; x++) {
-        const i1 = (y * sw + x) * 4;
-        const i2 = (y * sw + (sw - 1 - x)) * 4;
-        bgR += d[i1] + d[i2]; bgG += d[i1+1] + d[i2+1]; bgB += d[i1+2] + d[i2+2];
-        bgSamples += 2;
+    for (let y = 0; y < sh; y++) {
+      if (fg[y * sw + 0] && !fg[y * sw + 3] && !fg[y * sw + 4]) {
+        fg[y * sw + 0] = 0; fg[y * sw + 1] = 0;
+      }
+      if (fg[y * sw + (sw - 1)] && !fg[y * sw + (sw - 4)] && !fg[y * sw + (sw - 5)]) {
+        fg[y * sw + (sw - 1)] = 0; fg[y * sw + (sw - 2)] = 0;
       }
     }
-    bgR /= bgSamples; bgG /= bgSamples; bgB /= bgSamples;
 
-    function isDifferent(idx) {
-      const dr = d[idx] - bgR;
-      const dg = d[idx+1] - bgG;
-      const db = d[idx+2] - bgB;
-      return Math.sqrt(dr*dr + dg*dg + db*db) > 26;
-    }
-
-    let topY = 0;
-    for (let y = 3; y < sh / 2; y++) {
-      let diffCount = 0;
-      for (let x = 3; x < sw - 3; x++) {
-        if (isDifferent((y * sw + x) * 4)) diffCount++;
+    // 4. Morphological horizontal & vertical bridging to handle light photo regions / white borders
+    const cleaned = new Uint8Array(sw * sh);
+    const bridge = 50;
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        if (fg[y * sw + x]) {
+          cleaned[y * sw + x] = 1;
+        } else {
+          let leftHit = false, rightHit = false;
+          for (let dx = 1; dx <= bridge && x - dx >= 0; dx++) if (fg[y * sw + (x - dx)]) { leftHit = true; break; }
+          for (let dx = 1; dx <= bridge && x + dx < sw; dx++) if (fg[y * sw + (x + dx)]) { rightHit = true; break; }
+          if (leftHit && rightHit) cleaned[y * sw + x] = 1;
+        }
       }
-      if (diffCount > sw * 0.12) { topY = y; break; }
     }
 
-    let botY = sh - 1;
-    for (let y = sh - 4; y > sh / 2; y--) {
-      let diffCount = 0;
-      for (let x = 3; x < sw - 3; x++) {
-        if (isDifferent((y * sw + x) * 4)) diffCount++;
+    // 5. Row & Column projection histograms across the entire bed
+    const rowCounts = new Int32Array(sh);
+    const colCounts = new Int32Array(sw);
+
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        if (cleaned[y * sw + x]) {
+          rowCounts[y]++;
+          colCounts[x]++;
+        }
       }
-      if (diffCount > sw * 0.12) { botY = y; break; }
     }
 
-    let leftX = 0;
-    for (let x = 3; x < sw / 2; x++) {
-      let diffCount = 0;
-      for (let y = topY; y <= botY; y++) {
-        if (isDifferent((y * sw + x) * 4)) diffCount++;
+    const minW = Math.round(sw * 0.08);
+    const minH = Math.round(sh * 0.08);
+    const rowThreshold = Math.round(sw * 0.05);
+    const colThreshold = Math.round(sh * 0.05);
+
+    // Find main contiguous row span
+    let bestY0 = -1, bestY1 = -1, maxRowSpan = 0;
+    let curY0 = -1;
+    for (let y = 0; y < sh; y++) {
+      if (rowCounts[y] >= rowThreshold) {
+        if (curY0 === -1) curY0 = y;
+      } else {
+        if (curY0 !== -1) {
+          const span = y - curY0;
+          if (span > maxRowSpan) { maxRowSpan = span; bestY0 = curY0; bestY1 = y - 1; }
+          curY0 = -1;
+        }
       }
-      if (diffCount > (botY - topY) * 0.12) { leftX = x; break; }
+    }
+    if (curY0 !== -1 && (sh - curY0) > maxRowSpan) {
+      maxRowSpan = sh - curY0; bestY0 = curY0; bestY1 = sh - 1;
     }
 
-    let rightX = sw - 1;
-    for (let x = sw - 4; x > sw / 2; x--) {
-      let diffCount = 0;
-      for (let y = topY; y <= botY; y++) {
-        if (isDifferent((y * sw + x) * 4)) diffCount++;
+    // Find main contiguous col span
+    let bestX0 = -1, bestX1 = -1, maxColSpan = 0;
+    let curX0 = -1;
+    for (let x = 0; x < sw; x++) {
+      if (colCounts[x] >= colThreshold) {
+        if (curX0 === -1) curX0 = x;
+      } else {
+        if (curX0 !== -1) {
+          const span = x - curX0;
+          if (span > maxColSpan) { maxColSpan = span; bestX0 = curX0; bestX1 = x - 1; }
+          curX0 = -1;
+        }
       }
-      if (diffCount > (botY - topY) * 0.12) { rightX = x; break; }
+    }
+    if (curX0 !== -1 && (sw - curX0) > maxColSpan) {
+      maxColSpan = sw - curX0; bestX0 = curX0; bestX1 = sw - 1;
     }
 
-    const detectedW = (rightX - leftX) / sw;
-    const detectedH = (botY - topY) / sh;
+    if (bestX0 !== -1 && bestY0 !== -1 && maxColSpan >= minW && maxRowSpan >= minH) {
+      // 6. Edge Snapping: When photo is placed up against ruler or bed edges, snap cleanly to 0 or 1
+      let normX = bestX0 / sw;
+      let normY = bestY0 / sh;
+      let normRight = (bestX1 + 1) / sw;
+      let normBot = (bestY1 + 1) / sh;
 
-    if (detectedW >= 0.15 && detectedH >= 0.15 && (detectedW < 0.96 || detectedH < 0.96)) {
-      const padX = 0.01;
-      const padY = 0.01;
-      const x = Math.max(0, leftX / sw - padX);
-      const y = Math.max(0, topY / sh - padY);
-      const w = Math.min(1 - x, detectedW + padX * 2);
-      const h = Math.min(1 - y, detectedH + padY * 2);
-      studioCrop = { x, y, w, h };
+      if (bestX0 <= 4) normX = 0;
+      if (bestY0 <= 4) normY = 0;
+      if (bestX1 >= sw - 5) normRight = 1;
+      if (bestY1 >= sh - 5) normBot = 1;
+
+      // Small padding around detected photo (unless snapped directly against bed edge)
+      const padX = 0.008;
+      const padY = 0.008;
+      if (normX > 0) normX = Math.max(0, normX - padX);
+      if (normY > 0) normY = Math.max(0, normY - padY);
+      if (normRight < 1) normRight = Math.min(1, normRight + padX);
+      if (normBot < 1) normBot = Math.min(1, normBot + padY);
+
+      const normW = Math.min(1 - normX, normRight - normX);
+      const normH = Math.min(1 - normY, normBot - normY);
+
+      studioCrop = { x: normX, y: normY, w: normW, h: normH };
       updateCropBoxDom();
-      showToast('Auto-detected photo boundary!');
+      showToast('Auto-detected photo boundary (edge-aware)!');
       return;
     }
   } catch (err) {
