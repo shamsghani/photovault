@@ -4,6 +4,8 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace PhotoVault.ScannerBridge
 {
@@ -15,10 +17,11 @@ namespace PhotoVault.ScannerBridge
 
         static void Main(string[] args)
         {
-            Console.Title = "PhotoVault Scanner Bridge";
+            Console.Title = "PhotoVault Scanner Bridge (Zero-UI Direct Mode)";
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("=================================================");
-            Console.WriteLine("     PhotoVault Scanner Bridge (WIA to Web)      ");
+            Console.WriteLine("      PhotoVault Direct Scanner Bridge v1.2      ");
+            Console.WriteLine("        (100% Web UI - Zero External Windows)    ");
             Console.WriteLine("=================================================");
             Console.ResetColor();
             Console.WriteLine();
@@ -44,13 +47,14 @@ namespace PhotoVault.ScannerBridge
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("  Status   : ACTIVE & LISTENING");
+            Console.WriteLine("  Status   : ACTIVE & READY FOR PHOTOVAULT");
             Console.WriteLine("  Endpoint : " + url);
-            Console.WriteLine("  Web URL  : Ready for https://shamsghani.github.io/photovault/");
+            Console.WriteLine("  Web UI   : https://shamsghani.github.io/photovault/");
             Console.ResetColor();
             Console.WriteLine();
-            Console.WriteLine("Keep this window open while scanning photos into PhotoVault.");
-            Console.WriteLine("Press Ctrl+C to close at any time.");
+            Console.WriteLine("Scans are controlled 100% inside your browser.");
+            Console.WriteLine("No external Windows or HP apps will open.");
+            Console.WriteLine("Keep this background helper open while using PhotoVault.");
             Console.WriteLine(new string('-', 50));
 
             while (isRunning)
@@ -69,45 +73,68 @@ namespace PhotoVault.ScannerBridge
 
         private static void TestWiaAvailability()
         {
-            try
+            ExecuteInSta(() =>
             {
-                Type dmType = Type.GetTypeFromProgID("WIA.DeviceManager");
-                if (dmType == null)
+                try
+                {
+                    Type dmType = Type.GetTypeFromProgID("WIA.DeviceManager");
+                    if (dmType == null)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("WARNING: WIA COM library (WIA.DeviceManager) not found.");
+                        Console.ResetColor();
+                        return;
+                    }
+                    dynamic dm = Activator.CreateInstance(dmType);
+                    int count = dm.DeviceInfos.Count;
+                    Console.WriteLine("Scanner Subsystem: Ready (" + count + " device" + (count == 1 ? "" : "s") + " detected)");
+                    foreach (dynamic info in dm.DeviceInfos)
+                    {
+                        try
+                        {
+                            string name = (string)info.Properties["Name"].Value;
+                            string id = (string)info.DeviceID;
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("  * " + name + " [" + id + "]");
+                            Console.ResetColor();
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception ex)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("WARNING: WIA COM library (WIA.DeviceManager) not found on this system.");
+                    Console.WriteLine("WIA check notice: " + ex.Message);
                     Console.ResetColor();
-                    return;
                 }
-                dynamic dm = Activator.CreateInstance(dmType);
-                int count = dm.DeviceInfos.Count;
-                Console.WriteLine("WIA Imaging Subsystem: Ready (" + count + " scanner/imaging device" + (count == 1 ? "" : "s") + " detected)");
-                foreach (dynamic info in dm.DeviceInfos)
-                {
-                    try
-                    {
-                        string name = (string)info.Properties["Name"].Value;
-                        string id = (string)info.DeviceID;
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine("  * " + name + " [" + id + "]");
-                        Console.ResetColor();
-                    }
-                    catch { }
-                }
-            }
-            catch (Exception ex)
+            });
+        }
+
+        private static void ExecuteInSta(Action action)
+        {
+            Exception threadEx = null;
+            Thread staThread = new Thread(() =>
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("WIA check notice: " + ex.Message);
-                Console.ResetColor();
-            }
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    threadEx = ex;
+                }
+            });
+            staThread.SetApartmentState(ApartmentState.STA);
+            staThread.Start();
+            staThread.Join();
+            if (threadEx != null) throw threadEx;
         }
 
         private static void AddCorsHeaders(HttpListenerResponse res)
         {
             res.Headers["Access-Control-Allow-Origin"] = "*";
             res.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-            res.Headers["Access-Control-Allow-Headers"] = "Content-Type, Access-Control-Request-Private-Network";
+            res.Headers["Access-Control-Allow-Headers"] = "Content-Type, Access-Control-Request-Private-Network, Accept";
             res.Headers["Access-Control-Allow-Private-Network"] = "true";
         }
 
@@ -177,7 +204,7 @@ namespace PhotoVault.ScannerBridge
         {
             List<string> deviceList = GetScannerList();
             StringBuilder sb = new StringBuilder();
-            sb.Append("{\"success\":true,\"version\":\"1.0\",\"status\":\"online\",");
+            sb.Append("{\"success\":true,\"version\":\"1.2\",\"status\":\"online\",");
             sb.Append("\"devices\":[");
             for (int i = 0; i < deviceList.Count; i++)
             {
@@ -205,29 +232,32 @@ namespace PhotoVault.ScannerBridge
         private static List<string> GetScannerList()
         {
             List<string> list = new List<string>();
-            try
+            ExecuteInSta(() =>
             {
-                Type dmType = Type.GetTypeFromProgID("WIA.DeviceManager");
-                if (dmType != null)
+                try
                 {
-                    dynamic dm = Activator.CreateInstance(dmType);
-                    foreach (dynamic info in dm.DeviceInfos)
+                    Type dmType = Type.GetTypeFromProgID("WIA.DeviceManager");
+                    if (dmType != null)
                     {
-                        try
+                        dynamic dm = Activator.CreateInstance(dmType);
+                        foreach (dynamic info in dm.DeviceInfos)
                         {
-                            string name = (string)info.Properties["Name"].Value;
-                            string id = (string)info.DeviceID;
-                            int type = (int)info.Type;
-                            list.Add("{\"id\":" + EscapeJson(id) + ",\"name\":" + EscapeJson(name) + ",\"type\":" + type + "}");
+                            try
+                            {
+                                string name = (string)info.Properties["Name"].Value;
+                                string id = (string)info.DeviceID;
+                                int type = (int)info.Type;
+                                list.Add("{\"id\":" + EscapeJson(id) + ",\"name\":" + EscapeJson(name) + ",\"type\":" + type + "}");
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error enumerating devices: " + ex.Message);
-            }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error enumerating devices: " + ex.Message);
+                }
+            });
             return list;
         }
 
@@ -241,109 +271,158 @@ namespace PhotoVault.ScannerBridge
 
             int dpi = 300;
             string colorMode = "color";
-            bool showDialog = false;
             string deviceId = "";
 
             if (!string.IsNullOrEmpty(body))
             {
                 dpi = ParseJsonInt(body, "dpi", 300);
                 colorMode = ParseJsonString(body, "colorMode", "color").ToLowerInvariant();
-                showDialog = ParseJsonBool(body, "showDialog", false);
                 deviceId = ParseJsonString(body, "deviceId", "");
             }
 
-            Console.WriteLine("Initiating scan: DPI=" + dpi + ", Mode=" + colorMode + ", Dialog=" + showDialog);
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("Starting silent scan (no external apps): DPI=" + dpi + ", Mode=" + colorMode);
+            Console.ResetColor();
 
             // WIA Intent: 1 = Color, 2 = Grayscale, 4 = Text/BW
             int intent = 1;
             if (colorMode == "grayscale" || colorMode == "gray") intent = 2;
             else if (colorMode == "bw" || colorMode == "text" || colorMode == "lineart") intent = 4;
 
-            // Format: WIA JPEG GUID
-            string formatGuid = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}"; // JPEG
+            string jsonResult = null;
+            int responseCode = 200;
 
-            try
+            ExecuteInSta(() =>
             {
-                dynamic image = null;
-
-                if (showDialog || string.IsNullOrEmpty(deviceId))
+                try
                 {
-                    // Use WIA CommonDialog to acquire image
-                    Type cdType = Type.GetTypeFromProgID("WIA.CommonDialog");
-                    dynamic cd = Activator.CreateInstance(cdType);
-                    // DeviceType: 1 = ScannerDeviceType
-                    // Bias: 131072 = Maximize Quality
-                    image = cd.ShowAcquireImage(1, intent, 131072, formatGuid, false, true, false);
-                }
-                else
-                {
-                    // Direct acquire from specific device
                     Type dmType = Type.GetTypeFromProgID("WIA.DeviceManager");
                     dynamic dm = Activator.CreateInstance(dmType);
                     dynamic targetDevice = null;
+
                     foreach (dynamic d in dm.DeviceInfos)
                     {
-                        if ((string)d.DeviceID == deviceId)
+                        string curId = (string)d.DeviceID;
+                        if (string.IsNullOrEmpty(deviceId) || curId.Equals(deviceId, StringComparison.OrdinalIgnoreCase) || curId.Contains(deviceId) || deviceId.Contains(curId))
                         {
+                            Console.WriteLine("Connected to: " + d.Properties["Name"].Value);
                             targetDevice = d.Connect();
                             break;
                         }
                     }
 
+                    if (targetDevice == null && dm.DeviceInfos.Count > 0)
+                    {
+                        Console.WriteLine("Using default scanner: " + dm.DeviceInfos[1].Properties["Name"].Value);
+                        targetDevice = dm.DeviceInfos[1].Connect();
+                    }
+
                     if (targetDevice == null)
                     {
-                        // Fall back to dialog
-                        Type cdType = Type.GetTypeFromProgID("WIA.CommonDialog");
-                        dynamic cd = Activator.CreateInstance(cdType);
-                        image = cd.ShowAcquireImage(1, intent, 131072, formatGuid, false, true, false);
+                        jsonResult = "{\"success\":false,\"error\":\"No USB scanner connected or available\"}";
+                        responseCode = 404;
+                        return;
                     }
-                    else
+
+                    dynamic item = targetDevice.Items[1];
+
+                    // Configure resolution and color intent
+                    SetProperty(item.Properties, 6146, intent); // WIA_IPS_CUR_INTENT
+                    SetProperty(item.Properties, 6147, dpi);    // WIA_IPS_XRES
+                    SetProperty(item.Properties, 6148, dpi);    // WIA_IPS_YRES
+
+                    Console.WriteLine("Triggering direct sensor transfer...");
+
+                    // BMP format GUID is guaranteed to be supported natively by all WIA scanner drivers
+                    string bmpGuid = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}";
+                    dynamic image = null;
+
+                    try
                     {
-                        dynamic item = targetDevice.Items[1];
-                        // Set DPI and intent properties if supported
-                        SetProperty(item.Properties, "6146", intent); // WIA_IPS_CUR_INTENT
-                        SetProperty(item.Properties, "6147", dpi);    // WIA_IPS_XRES
-                        SetProperty(item.Properties, "6148", dpi);    // WIA_IPS_YRES
-
-                        Type cdType = Type.GetTypeFromProgID("WIA.CommonDialog");
-                        dynamic cd = Activator.CreateInstance(cdType);
-                        image = cd.ShowTransfer(item, formatGuid, false);
+                        // Direct silent transfer — NO DIALOG, NO EXTERNAL APP
+                        image = item.Transfer(bmpGuid);
                     }
-                }
+                    catch (Exception exBmp)
+                    {
+                        Console.WriteLine("Direct BMP transfer note: " + exBmp.Message + ". Trying JPEG transfer...");
+                        string jpgGuid = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}";
+                        image = item.Transfer(jpgGuid);
+                    }
 
-                if (image == null)
+                    if (image == null)
+                    {
+                        jsonResult = "{\"success\":false,\"error\":\"Scanner completed without returning image data\"}";
+                        return;
+                    }
+
+                    byte[] rawBytes = (byte[])image.FileData.BinaryData;
+                    int origW = (int)image.Width;
+                    int origH = (int)image.Height;
+
+                    // Convert to high-quality compressed JPEG in memory via System.Drawing
+                    byte[] jpegBytes;
+                    using (var inMs = new MemoryStream(rawBytes))
+                    using (var bitmap = Image.FromStream(inMs))
+                    using (var outMs = new MemoryStream())
+                    {
+                        ImageCodecInfo jpgEncoder = GetEncoder(ImageFormat.Jpeg);
+                        var encoderParams = new EncoderParameters(1);
+                        encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 90L);
+                        bitmap.Save(outMs, jpgEncoder, encoderParams);
+                        jpegBytes = outMs.ToArray();
+                    }
+
+                    string base64 = Convert.ToBase64String(jpegBytes);
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Scan successful! " + origW + "x" + origH + " px (" + (jpegBytes.Length / 1024) + " KB JPEG)");
+                    Console.WriteLine("Sent directly to PhotoVault web UI.");
+                    Console.ResetColor();
+
+                    jsonResult = "{\"success\":true,\"width\":" + origW + ",\"height\":" + origH +
+                                  ",\"size\":" + jpegBytes.Length + ",\"mime\":\"image/jpeg\",\"data\":\"data:image/jpeg;base64," + base64 + "\"}";
+                }
+                catch (Exception ex)
                 {
-                    SendJson(res, "{\"success\":false,\"error\":\"Scan was cancelled or produced no image\"}");
-                    return;
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Scan error: " + ex.Message);
+                    Console.ResetColor();
+                    jsonResult = "{\"success\":false,\"error\":" + EscapeJson(ex.Message) + "}";
+                    responseCode = 500;
                 }
+            });
 
-                byte[] bytes = (byte[])image.FileData.BinaryData;
-                string base64 = Convert.ToBase64String(bytes);
-                int width = (int)image.Width;
-                int height = (int)image.Height;
-
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Scan successful! Dimensions: " + width + "x" + height + ", Size: " + (bytes.Length / 1024) + " KB");
-                Console.ResetColor();
-
-                string json = "{\"success\":true,\"width\":" + width + ",\"height\":" + height +
-                              ",\"size\":" + bytes.Length + ",\"mime\":\"image/jpeg\",\"data\":\"data:image/jpeg;base64," + base64 + "\"}";
-                SendJson(res, json);
-            }
-            catch (Exception ex)
+            if (jsonResult == null)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Scan failed: " + ex.Message);
-                Console.ResetColor();
-                SendJson(res, "{\"success\":false,\"error\":" + EscapeJson(ex.Message) + "}");
+                jsonResult = "{\"success\":false,\"error\":\"Scan operation failed to complete\"}";
+                responseCode = 500;
             }
+
+            SendJson(res, jsonResult, responseCode);
         }
 
-        private static void SetProperty(dynamic props, string propIdOrName, object val)
+        private static ImageCodecInfo GetEncoder(ImageFormat format)
+        {
+            ImageCodecInfo[] codecs = ImageCodecInfo.GetImageDecoders();
+            foreach (ImageCodecInfo codec in codecs)
+            {
+                if (codec.FormatID == format.Guid) return codec;
+            }
+            return null;
+        }
+
+        private static void SetProperty(dynamic props, int propId, object val)
         {
             try
             {
-                props[propIdOrName].Value = val;
+                foreach (dynamic p in props)
+                {
+                    if ((int)p.PropertyID == propId)
+                    {
+                        p.Value = val;
+                        return;
+                    }
+                }
             }
             catch { }
         }
@@ -380,8 +459,13 @@ namespace PhotoVault.ScannerBridge
                 int startQuote = json.IndexOf('\"', colon + 1);
                 if (startQuote < 0) return def;
                 int endQuote = json.IndexOf('\"', startQuote + 1);
+                while (endQuote > startQuote && json[endQuote - 1] == '\\')
+                {
+                    endQuote = json.IndexOf('\"', endQuote + 1);
+                }
                 if (endQuote < 0) return def;
-                return json.Substring(startQuote + 1, endQuote - startQuote - 1);
+                string val = json.Substring(startQuote + 1, endQuote - startQuote - 1);
+                return val.Replace("\\\\", "\\").Replace("\\\"", "\"");
             }
             catch { return def; }
         }
@@ -399,24 +483,6 @@ namespace PhotoVault.ScannerBridge
                 string valStr = (end > 0 ? json.Substring(colon + 1, end - colon - 1) : json.Substring(colon + 1)).Trim();
                 int result;
                 if (int.TryParse(valStr, out result)) return result;
-                return def;
-            }
-            catch { return def; }
-        }
-
-        private static bool ParseJsonBool(string json, string key, bool def)
-        {
-            try
-            {
-                string needle = "\"" + key + "\"";
-                int idx = json.IndexOf(needle, StringComparison.OrdinalIgnoreCase);
-                if (idx < 0) return def;
-                int colon = json.IndexOf(':', idx + needle.Length);
-                if (colon < 0) return def;
-                int end = json.IndexOfAny(new char[] { ',', '}', '\r', '\n' }, colon + 1);
-                string valStr = (end > 0 ? json.Substring(colon + 1, end - colon - 1) : json.Substring(colon + 1)).Trim().ToLowerInvariant();
-                if (valStr == "true") return true;
-                if (valStr == "false") return false;
                 return def;
             }
             catch { return def; }

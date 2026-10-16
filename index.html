@@ -312,7 +312,7 @@
   .cat-del:hover { color: #C25151; }
   .cat-header:hover .cat-del { display: inline; }
 
-  /* ==================== SCANNER MODAL & TABS ==================== */
+  /* ==================== SCANNER MODAL & IN-APP SCAN STUDIO ==================== */
   .scanner-overlay {
     display: none; position: fixed; inset: 0; z-index: 150;
     background: var(--lb-bg); backdrop-filter: blur(6px);
@@ -322,9 +322,13 @@
   .scanner-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); box-shadow: 0 16px 40px var(--shadow-md);
-    width: 100%; max-width: 680px; max-height: 90vh;
+    width: 100%; max-width: 680px; max-height: 92vh;
     display: flex; flex-direction: column; overflow: hidden;
-    animation: modalFadeIn 0.18s ease-out;
+    animation: modalFadeIn 0.18s ease-out; transition: max-width 0.25s ease-out;
+  }
+  .scanner-card.studio-mode {
+    max-width: 1040px;
+    height: 90vh;
   }
   @keyframes modalFadeIn {
     from { opacity: 0; transform: scale(0.97) translateY(8px); }
@@ -352,7 +356,7 @@
   .scanner-tab:hover { color: var(--text); }
   .scanner-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
   .scanner-body {
-    padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;
+    padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px; min-height: 0;
   }
   .bridge-status-bar {
     display: flex; align-items: center; gap: 10px; padding: 10px 14px;
@@ -367,50 +371,119 @@
   .bridge-dot.offline { background: #EAB308; }
   .bridge-dot.error { background: #EF4444; }
   .bridge-offline-box {
-    padding: 16px; background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 10px;
+    padding: 18px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 12px;
   }
-  .bridge-guide-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
-  .bridge-guide-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+  .bridge-guide-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .bridge-guide-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
   .bridge-actions-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
-  .bridge-auto-hint { font-size: 11px; color: var(--text-3); font-style: italic; }
+  .bridge-auto-hint { font-size: 11.5px; color: var(--text-3); font-style: italic; }
   .scanner-form-row { display: flex; flex-direction: column; gap: 6px; }
-  .scanner-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .scanner-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .scanner-form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
-  .scan-busy-label { display: inline-flex; align-items: center; gap: 8px; }
-  .scan-spinner {
-    width: 14px; height: 14px; border: 2px solid var(--border);
-    border-top-color: var(--accent); border-radius: 50%;
-    animation: scanSpin 0.7s linear infinite; display: inline-block;
+
+  /* Animated Scanner Activity */
+  .scan-active-box {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 30px 20px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); gap: 14px; text-align: center;
   }
-  @keyframes scanSpin { to { transform: rotate(360deg); } }
-  .scan-result-card {
-    display: flex; gap: 16px; background: var(--surface-2);
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 14px; margin-top: 4px;
+  .scan-bed-simulation {
+    width: 240px; height: 150px; background: #0c0e12; border: 2px solid var(--border-strong);
+    border-radius: 8px; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
   }
-  .scan-result-preview-wrap {
-    width: 200px; height: 240px; background: #000; border-radius: var(--radius-sm);
-    display: flex; align-items: center; justify-content: center; position: relative;
-    overflow: hidden; flex-shrink: 0;
+  .scan-bed-glass {
+    position: absolute; inset: 6px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0%, transparent 80%);
   }
-  .scan-result-preview-wrap img {
-    max-width: 100%; max-height: 100%; object-fit: contain;
-    transition: transform 0.2s ease;
+  .scan-bed-laser {
+    position: absolute; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.95) 50%, transparent 100%);
+    box-shadow: 0 0 14px rgba(59,130,246,1), 0 0 24px rgba(59,130,246,0.6);
+    top: 8px; animation: laserSweep 2s ease-in-out infinite alternate;
   }
-  .scan-edit-tools {
-    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 4px; background: rgba(0,0,0,0.65); padding: 3px 6px;
-    border-radius: 20px; backdrop-filter: blur(4px);
+  @keyframes laserSweep {
+    0% { top: 8px; }
+    100% { top: 136px; }
   }
-  .scan-edit-tools .icon-btn {
-    width: 26px; height: 26px; border: none; background: transparent; color: white;
+  .scan-active-title { font-size: 14.5px; font-weight: 600; color: var(--text); }
+  .scan-active-sub { font-size: 12px; color: var(--text-2); max-width: 380px; }
+  .scan-badge-silent {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500;
+    color: #10B981; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+    padding: 3px 8px; border-radius: 12px;
   }
-  .scan-edit-tools .icon-btn:hover { background: rgba(255,255,255,0.2); }
-  .scan-result-details { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-  .scanned-meta-chips { display: flex; gap: 6px; font-size: 11.5px; color: var(--text-2); }
+
+  /* Scan Studio Workbench */
+  .scan-studio-wrap {
+    display: none; flex-direction: column; flex: 1; min-height: 0; gap: 14px;
+  }
+  .scan-studio-grid {
+    display: grid; grid-template-columns: 1fr 310px; gap: 16px; flex: 1; min-height: 0;
+  }
+  .scan-studio-stage {
+    display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); overflow: hidden; min-height: 0;
+  }
+  .scan-studio-toolbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 8px; padding: 8px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border);
+  }
+  .scan-tool-group { display: flex; align-items: center; gap: 4px; }
+  .scan-canvas-wrap {
+    flex: 1; position: relative; background: #121316;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; min-height: 320px; user-select: none; padding: 12px;
+  }
+  .scan-canvas-stage {
+    position: relative; display: inline-block; line-height: 0;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.6);
+  }
+  #scanStudioCanvas {
+    display: block; width: 100%; height: 100%; transition: filter 0.08s ease-out;
+  }
+  /* Interactive Crop Box Overlay */
+  .scan-crop-box {
+    position: absolute; border: 2px solid var(--accent);
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.65);
+    cursor: move; box-sizing: border-box; touch-action: none;
+  }
+  .scan-crop-grid {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(to right, rgba(255,255,255,0.25) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(255,255,255,0.25) 1px, transparent 1px);
+    background-size: 33.333% 33.333%;
+  }
+  .crop-handle {
+    position: absolute; width: 10px; height: 10px; background: #fff;
+    border: 2px solid var(--accent); border-radius: 2px; z-index: 5;
+  }
+  .crop-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+  .crop-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+  .crop-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+  .crop-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+  .crop-handle.t  { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+  .crop-handle.b  { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+  .crop-handle.l  { left: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+  .crop-handle.r  { right: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+  .scan-studio-stage-footer {
+    padding: 6px 12px; background: var(--surface-2); border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--text-3);
+  }
+  .scan-studio-sidebar {
+    display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-right: 4px;
+  }
+  .scan-adjust-box {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .scan-adjust-title { font-size: 12px; font-weight: 600; color: var(--text); }
+  .scan-slider-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; }
+  .scan-slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+  .scan-slider-val { width: 32px; text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .scan-sidebar-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
   .scan-tags-pills { display: flex; flex-wrap: wrap; gap: 4px; min-height: 22px; }
-  .scan-intake-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
   .hid-box, .camera-box { padding: 10px 0; }
   .hid-log {
     margin-top: 10px; font-family: monospace; font-size: 11.5px; color: var(--text-2);
@@ -563,8 +636,8 @@
     .dup-compare-stage { grid-template-columns: 1fr; }
     .dup-toolbar { flex-direction: column; align-items: stretch; }
     .scanner-form-grid { grid-template-columns: 1fr; }
-    .scan-result-card { flex-direction: column; }
-    .scan-result-preview-wrap { width: 100%; height: 200px; }
+    .scan-studio-grid { grid-template-columns: 1fr; }
+    .scan-canvas-wrap { min-height: 240px; }
   }
 </style>
 <style id="catStyles"></style>
@@ -946,22 +1019,22 @@
     <h3>Privacy &amp; storage</h3>
     <p>Everything is processed in your browser. Thumbnails, tags and preferences are stored locally (IndexedDB &amp; browser storage). Nothing is uploaded anywhere.</p>
   </div>
-<!-- SCANNER MODAL -->
+<!-- SCANNER MODAL & IN-APP SCAN STUDIO -->
 <div class="scanner-overlay" id="scannerOverlay">
-  <div class="scanner-card">
+  <div class="scanner-card" id="scannerCard">
     <div class="scanner-header">
       <div class="scanner-title">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
-        Scan Photos
+        <span id="scannerModalTitle">Scan Photos</span>
       </div>
       <button class="about-close" onclick="closeScannerModal()">&#x2715;</button>
     </div>
 
-    <!-- TABS -->
-    <div class="scanner-tabs">
+    <!-- TABS (Hidden when in Studio Mode) -->
+    <div class="scanner-tabs" id="scannerTabs">
       <button class="scanner-tab active" id="tabBridgeBtn" onclick="switchScannerTab('bridge')">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        USB Scanner (Bridge)
+        USB Flatbed Scanner
       </button>
       <button class="scanner-tab" id="tabHidBtn" onclick="switchScannerTab('hid')">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16M5 19a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
@@ -980,17 +1053,18 @@
         <div class="bridge-status-bar" id="bridgeStatusBar">
           <div class="bridge-dot" id="bridgeDot"></div>
           <div class="bridge-status-text" id="bridgeStatusText">Checking scanner bridge...</div>
-          <button class="jb-btn" id="bridgeRefreshBtn" onclick="checkScannerBridge(true)" style="margin-left:auto">Refresh</button>
+          <span class="scan-badge-silent" style="margin-left:auto;margin-right:8px">100% In-Browser UI</span>
+          <button class="jb-btn" id="bridgeRefreshBtn" onclick="checkScannerBridge(true)">Refresh</button>
         </div>
 
         <!-- WHEN BRIDGE IS OFFLINE -->
         <div class="bridge-offline-box" id="bridgeOfflineBox" style="display:none">
-          <div class="bridge-guide-title">Connecting Scanners to GitHub Pages</div>
-          <p class="bridge-guide-desc">Web browsers prevent web pages from directly claiming USB scanner hardware due to OS driver locks. Run the lightweight local helper on your computer to bridge your scanner directly into PhotoVault.</p>
+          <div class="bridge-guide-title">Connect Your USB Scanner to PhotoVault</div>
+          <p class="bridge-guide-desc">Web browsers prevent web pages on GitHub Pages from directly claiming raw USB scanner hardware due to OS kernel driver locks. The lightweight PhotoVault Scanner Bridge runs silently in the background on your PC and transmits scans directly into PhotoVault's in-browser studio with <strong>zero external apps or popups</strong>.</p>
           <div class="bridge-actions-row">
             <a class="empty-cta" href="scanner-bridge/PhotoVaultScannerBridge.exe" download style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Windows .exe (25 KB)
+              Download Bridge .exe (27 KB)
             </a>
             <a class="jb-btn" href="scanner-bridge/run-scanner-bridge.bat" download style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
               Download .bat Launcher
@@ -1000,19 +1074,19 @@
           <div class="bridge-auto-hint">Auto-detecting... keep this window open and start the bridge.</div>
         </div>
 
-        <!-- WHEN BRIDGE IS ONLINE -->
+        <!-- WHEN BRIDGE IS ONLINE (SCAN SETTINGS) -->
         <div class="bridge-online-box" id="bridgeOnlineBox" style="display:none">
           <div class="scanner-form-row">
-            <label class="scanner-form-label">Scanner Device</label>
+            <label class="scanner-form-label">Scanner Hardware</label>
             <select class="cat-select" id="scannerSelect" style="margin-bottom:0"></select>
           </div>
-          <div class="scanner-form-grid" style="margin-top:10px">
+          <div class="scanner-form-grid" style="margin-top:12px">
             <div>
-              <label class="scanner-form-label">Resolution</label>
+              <label class="scanner-form-label">Resolution (DPI)</label>
               <div class="seg-toggle" style="width:100%">
-                <button class="seg-btn" id="dpi150" onclick="setScanDpi(150)">150 DPI</button>
-                <button class="seg-btn active" id="dpi300" onclick="setScanDpi(300)">300 DPI</button>
-                <button class="seg-btn" id="dpi600" onclick="setScanDpi(600)">600 DPI</button>
+                <button class="seg-btn" id="dpi200" onclick="setScanDpi(200)">200 (Draft)</button>
+                <button class="seg-btn active" id="dpi300" onclick="setScanDpi(300)">300 (Photo)</button>
+                <button class="seg-btn" id="dpi600" onclick="setScanDpi(600)">600 (Hi-Res)</button>
               </div>
             </div>
             <div>
@@ -1024,20 +1098,25 @@
               </div>
             </div>
           </div>
-          <div class="scanner-option-row" style="margin-top:10px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2);cursor:pointer">
-              <input type="checkbox" id="scanShowDialog"> Show scanner adjustment dialog before scanning
-            </label>
-          </div>
-          <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-            <button class="empty-cta" id="startScanBtn" onclick="triggerScan()" style="padding:10px 24px;display:inline-flex;align-items:center;gap:8px">
-              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
-              <span>Scan Photo</span>
+
+          <div style="margin-top:20px;display:flex;gap:12px;align-items:center">
+            <button class="empty-cta" id="startScanBtn" onclick="triggerScan()" style="padding:11px 26px;display:inline-flex;align-items:center;gap:8px;font-size:13.5px">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
+              <span>Scan Photo Directly</span>
             </button>
-            <span class="scan-busy-label" id="scanBusyLabel" style="display:none;font-size:12.5px;color:var(--accent);font-weight:500">
-              <span class="scan-spinner"></span> Scanning in progress&#8230;
-            </span>
+            <span style="font-size:12px;color:var(--text-3)">Entirely inside PhotoVault &middot; No external apps will open</span>
           </div>
+        </div>
+
+        <!-- ACTIVE SCANNING ANIMATION PANEL -->
+        <div class="scan-active-box" id="scanActiveBox">
+          <div class="scan-bed-simulation">
+            <div class="scan-bed-glass"></div>
+            <div class="scan-bed-laser"></div>
+          </div>
+          <div class="scan-active-title">Scanning Photo From Hardware Sensor...</div>
+          <div class="scan-active-sub" id="scanActiveStatusText">Communicating directly with optical sensor. Zero external apps.</div>
+          <div class="dup-progress-spinner" style="width:22px;height:22px;border-width:2px;margin:0"></div>
         </div>
       </div>
 
@@ -1064,40 +1143,113 @@
         </div>
       </div>
 
-      <!-- SCANNED RESULT INTAKE & REVIEW -->
-      <div class="scan-result-card" id="scanResultCard" style="display:none">
-        <div class="scan-result-preview-wrap">
-          <img id="scannedImgPreview" src="" alt="Scanned Photo">
-          <div class="scan-edit-tools">
-            <button class="icon-btn" onclick="rotateScannedImage(-90)" title="Rotate Left 90°">↶</button>
-            <button class="icon-btn" onclick="rotateScannedImage(90)" title="Rotate Right 90°">↷</button>
-            <button class="icon-btn" onclick="flipScannedImage('h')" title="Flip Horizontal">⇄</button>
-          </div>
-        </div>
-        <div class="scan-result-details">
-          <div class="scanner-form-row">
-            <label class="scanner-form-label">Filename</label>
-            <input class="add-tag-input" id="scannedFilename" type="text" style="width:100%">
-          </div>
-          <div class="scanned-meta-chips" id="scannedMetaChips"></div>
-          <div class="scanner-form-row">
-            <label class="scanner-form-label">Initial Tags</label>
-            <div style="display:flex;gap:6px">
-              <select class="cat-select" id="scanCatSelect" style="width:120px;margin-bottom:0">
-                <option value="person">&#128100; Person</option>
-                <option value="place">&#128205; Place</option>
-                <option value="year">&#128197; Year</option>
-                <option value="other" selected>&#127991; Other</option>
-              </select>
-              <input class="add-tag-input" id="scanTagInput" placeholder="Add tag and press Enter" list="tagSuggestionList">
-              <button class="add-tag-btn" onclick="addScannedTag()">Add</button>
+      <!-- IN-APP SCAN STUDIO (REVIEW, CROP, ENHANCE & INTAKE) -->
+      <div class="scan-studio-wrap" id="scanStudioWrap">
+        <div class="scan-studio-grid">
+          <!-- LEFT: WORKSPACE & CROP STAGE -->
+          <div class="scan-studio-stage">
+            <div class="scan-studio-toolbar">
+              <div class="scan-tool-group">
+                <button class="seg-btn" id="cropAspectAuto" onclick="autoCropPhoto()" title="Auto-detect photo boundaries on flatbed">&#x2728; Auto-Crop</button>
+                <button class="seg-btn active" id="cropAspectFree" onclick="setCropAspect('free')">Free</button>
+                <button class="seg-btn" id="cropAspect46" onclick="setCropAspect('4:6')">4 &times; 6</button>
+                <button class="seg-btn" id="cropAspect57" onclick="setCropAspect('5:7')">5 &times; 7</button>
+                <button class="seg-btn" id="cropAspect11" onclick="setCropAspect('1:1')">1 : 1</button>
+                <button class="seg-btn" id="cropAspectFull" onclick="setCropAspect('full')">Full Bed</button>
+              </div>
+              <div class="scan-tool-group">
+                <button class="icon-btn" onclick="rotateStudioImage(-90)" title="Rotate Left 90&deg;">↶</button>
+                <button class="icon-btn" onclick="rotateStudioImage(90)" title="Rotate Right 90&deg;">↷</button>
+                <button class="icon-btn" onclick="flipStudioImage('h')" title="Flip Horizontal">⇄</button>
+                <button class="icon-btn" onclick="flipStudioImage('v')" title="Flip Vertical">⇅</button>
+              </div>
             </div>
-            <div class="scan-tags-pills" id="scannedTagsPills"></div>
+
+            <div class="scan-canvas-wrap" id="scanCanvasWrap">
+              <div class="scan-canvas-stage" id="scanCanvasStage">
+                <canvas id="scanStudioCanvas"></canvas>
+                <div class="scan-crop-box" id="scanCropBox">
+                  <div class="scan-crop-grid"></div>
+                  <div class="crop-handle tl" data-dir="tl"></div>
+                  <div class="crop-handle tr" data-dir="tr"></div>
+                  <div class="crop-handle bl" data-dir="bl"></div>
+                  <div class="crop-handle br" data-dir="br"></div>
+                  <div class="crop-handle t" data-dir="t"></div>
+                  <div class="crop-handle b" data-dir="b"></div>
+                  <div class="crop-handle l" data-dir="l"></div>
+                  <div class="crop-handle r" data-dir="r"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="scan-studio-stage-footer">
+              <span id="scanCropDimLabel">Selection: Full Flatbed</span>
+              <span id="scanHardwareMeta">HP LJ M125126 &middot; 300 DPI &middot; COLOR</span>
+            </div>
           </div>
-          <div class="scan-intake-actions">
-            <button class="empty-cta" id="saveScanToVaultBtn" onclick="saveScannedPhotoToVault()">Save &amp; Add to Vault</button>
-            <button class="jb-btn" onclick="downloadScannedPhoto()">Download JPEG</button>
-            <button class="jb-btn" onclick="resetScannedCard()">Scan Another</button>
+
+          <!-- RIGHT: ENHANCEMENTS & VAULT INTAKE -->
+          <div class="scan-studio-sidebar">
+            <!-- Adjustments -->
+            <div class="scan-adjust-box">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="scan-adjust-title">Visual Adjustments</span>
+                <button class="text-link-btn" onclick="resetStudioAdjustments()">Reset</button>
+              </div>
+              <div class="scan-slider-row">
+                <span>Contrast</span>
+                <input type="range" id="scanContrastSlider" min="-50" max="50" value="0" oninput="updateStudioAdjustments()">
+                <span class="scan-slider-val" id="scanContrastVal">0</span>
+              </div>
+              <div class="scan-slider-row">
+                <span>Brightness</span>
+                <input type="range" id="scanBrightnessSlider" min="-50" max="50" value="0" oninput="updateStudioAdjustments()">
+                <span class="scan-slider-val" id="scanBrightnessVal">0</span>
+              </div>
+              <button class="jb-btn" onclick="autoEnhancePhoto()" style="width:100%;margin-top:2px">
+                &#x2728; Auto-Enhance Vintage Contrast
+              </button>
+            </div>
+
+            <!-- Filename -->
+            <div class="scanner-form-row">
+              <label class="scanner-form-label">Filename</label>
+              <input class="add-tag-input" id="scannedFilename" type="text" style="width:100%">
+            </div>
+
+            <!-- Destination Folder -->
+            <div class="scanner-form-row">
+              <label class="scanner-form-label">Destination Folder</label>
+              <select class="cat-select" id="scanFolderSelect" style="margin-bottom:0"></select>
+            </div>
+
+            <!-- Tags -->
+            <div class="scanner-form-row">
+              <label class="scanner-form-label">Photo Tags</label>
+              <div style="display:flex;gap:6px">
+                <select class="cat-select" id="scanCatSelect" style="width:110px;margin-bottom:0">
+                  <option value="person">&#128100; Person</option>
+                  <option value="place">&#128205; Place</option>
+                  <option value="year">&#128197; Year</option>
+                  <option value="other" selected>&#127991; Tag</option>
+                </select>
+                <input class="add-tag-input" id="scanTagInput" placeholder="Add tag + Enter" list="tagSuggestionList">
+                <button class="add-tag-btn" onclick="addScannedTag()">Add</button>
+              </div>
+              <div class="scan-tags-pills" id="scannedTagsPills"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="scan-sidebar-actions">
+              <button class="empty-cta" id="saveScanToVaultBtn" onclick="saveScannedPhotoToVault()" style="width:100%;padding:11px 16px;font-size:13px;justify-content:center">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Save Cropped Photo to Vault</span>
+              </button>
+              <div style="display:flex;gap:8px">
+                <button class="jb-btn" onclick="downloadScannedPhoto()" style="flex:1">Download JPEG</button>
+                <button class="jb-btn" onclick="resetStudioToScan()" style="flex:1">Scan Another</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -3478,7 +3630,7 @@ async function discardClusterPhoto(photoId) {
   recalcDuplicateMatches();
 }
 
-// ==================== USB SCANNER BRIDGE & WEBHID SYSTEM ====================
+// ==================== USB SCANNER BRIDGE & IN-APP SCAN STUDIO ====================
 const SCANNER_BRIDGE_URL = 'http://127.0.0.1:18205';
 let scannerBridgeOnline = false;
 let scannerDevices = [];
@@ -3486,19 +3638,30 @@ let selectedScannerId = '';
 let scanDpi = 300;
 let scanColorMode = 'color';
 let scanCheckTimer = null;
-let scannedImageData = null;
-let scannedImageWidth = 0;
-let scannedImageHeight = 0;
-let scannedImageRotation = 0;
-let scannedTags = [];
 let cameraStream = null;
 let connectedHidDevice = null;
+
+// Scan Studio State
+let studioRawImage = null;
+let studioRawDataUrl = null;
+let studioRawWidth = 0;
+let studioRawHeight = 0;
+let studioRotation = 0;
+let studioFlipH = false;
+let studioFlipV = false;
+let studioBrightness = 0;
+let studioContrast = 0;
+let studioCropAspect = 'free';
+let studioCrop = { x: 0.05, y: 0.05, w: 0.90, h: 0.90 };
+let studioTags = [];
+let studioDragMode = null;
+let studioDragStart = { mouseX: 0, mouseY: 0, cropX: 0, cropY: 0, cropW: 0, cropH: 0 };
+let cropEventsInitialized = false;
 
 function openScannerModal() {
   document.getElementById('scannerOverlay').classList.add('open');
   switchScannerTab('bridge');
   checkScannerBridge();
-  // Auto-poll bridge status every 3s while modal is open
   clearInterval(scanCheckTimer);
   scanCheckTimer = setInterval(() => {
     if (!scannerBridgeOnline) checkScannerBridge(false);
@@ -3507,6 +3670,12 @@ function openScannerModal() {
 
 function closeScannerModal() {
   document.getElementById('scannerOverlay').classList.remove('open');
+  document.getElementById('scannerCard').classList.remove('studio-mode');
+  document.getElementById('scanActiveBox').style.display = 'none';
+  document.getElementById('scanStudioWrap').style.display = 'none';
+  document.getElementById('scannerTabs').style.display = 'flex';
+  document.getElementById('paneBridge').style.display = 'block';
+  document.getElementById('scannerModalTitle').textContent = 'Scan Photos';
   clearInterval(scanCheckTimer);
   stopCameraStream();
 }
@@ -3540,7 +3709,6 @@ async function checkScannerBridge(isManual) {
     const timer = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(`${SCANNER_BRIDGE_URL}/status`, {
       method: 'GET',
-      headers: { 'Access-Control-Request-Private-Network': 'true' },
       signal: controller.signal
     });
     clearTimeout(timer);
@@ -3561,13 +3729,13 @@ async function checkScannerBridge(isManual) {
           select.appendChild(opt);
         });
         selectedScannerId = scannerDevices[0].id;
-        text.textContent = `Bridge Connected &middot; ${scannerDevices.length} scanner${scannerDevices.length !== 1 ? 's' : ''} available`;
+        text.textContent = `Bridge Connected \u00B7 ${scannerDevices.length} scanner${scannerDevices.length !== 1 ? 's' : ''} ready`;
       } else {
         const opt = document.createElement('option');
         opt.value = '';
         opt.textContent = 'Default Windows Scanner';
         select.appendChild(opt);
-        text.textContent = 'Bridge Connected &middot; Default Scanner';
+        text.textContent = 'Bridge Connected \u00B7 Default Scanner ready';
       }
 
       offlineBox.style.display = 'none';
@@ -3576,7 +3744,7 @@ async function checkScannerBridge(isManual) {
       return;
     }
   } catch (err) {
-    // Bridge is offline
+    // Bridge offline
   }
 
   scannerBridgeOnline = false;
@@ -3589,7 +3757,7 @@ async function checkScannerBridge(isManual) {
 
 function setScanDpi(dpi) {
   scanDpi = dpi;
-  [150, 300, 600].forEach(d => {
+  [200, 300, 600].forEach(d => {
     const btn = document.getElementById(`dpi${d}`);
     if (btn) btn.classList.toggle('active', d === dpi);
   });
@@ -3604,86 +3772,485 @@ function setScanMode(mode) {
 
 async function triggerScan() {
   const scanBtn = document.getElementById('startScanBtn');
-  const busyLabel = document.getElementById('scanBusyLabel');
-  const showDialog = document.getElementById('scanShowDialog').checked;
+  const onlineBox = document.getElementById('bridgeOnlineBox');
+  const activeBox = document.getElementById('scanActiveBox');
+  const statusText = document.getElementById('scanActiveStatusText');
   const select = document.getElementById('scannerSelect');
   const deviceId = select ? select.value : '';
 
-  scanBtn.disabled = true;
-  busyLabel.style.display = 'inline-flex';
+  onlineBox.style.display = 'none';
+  activeBox.style.display = 'flex';
+  statusText.textContent = `Scanning hardware sensor at ${scanDpi} DPI (${scanColorMode.toUpperCase()}). Zero external windows.`;
 
   try {
     const payload = {
       dpi: scanDpi,
       colorMode: scanColorMode,
-      showDialog,
       deviceId
     };
 
     const res = await fetch(`${SCANNER_BRIDGE_URL}/scan`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Request-Private-Network': 'true'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
 
     const data = await res.json();
     if (data.success && data.data) {
-      handleScanAcquired(data.data, data.width, data.height);
-      showToast('Scan acquired successfully!');
+      activeBox.style.display = 'none';
+      enterScanStudio(data.data, data.width, data.height);
+      showToast('Scan acquired! Opening in-app studio...');
     } else {
-      showToast('Scan error: ' + (data.error || 'No image acquired'));
+      activeBox.style.display = 'none';
+      onlineBox.style.display = 'block';
+      showToast('Scan error: ' + (data.error || 'No image data returned'));
     }
   } catch (err) {
+    activeBox.style.display = 'none';
+    onlineBox.style.display = 'block';
     showToast('Failed to communicate with scanner bridge: ' + err.message);
-  } finally {
-    scanBtn.disabled = false;
-    busyLabel.style.display = 'none';
   }
 }
 
-function handleScanAcquired(dataUrl, width, height) {
-  scannedImageData = dataUrl;
-  scannedImageWidth = width || 0;
-  scannedImageHeight = height || 0;
-  scannedImageRotation = 0;
-  scannedTags = [];
+function enterScanStudio(dataUrl, width, height) {
+  studioRawDataUrl = dataUrl;
+  studioRawWidth = width || 0;
+  studioRawHeight = height || 0;
+  studioRotation = 0;
+  studioFlipH = false;
+  studioFlipV = false;
+  studioBrightness = 0;
+  studioContrast = 0;
+  studioCropAspect = 'free';
+  studioCrop = { x: 0.05, y: 0.05, w: 0.90, h: 0.90 };
+  studioTags = [];
 
-  const preview = document.getElementById('scannedImgPreview');
-  preview.src = dataUrl;
-  preview.style.transform = 'none';
+  const card = document.getElementById('scannerCard');
+  card.classList.add('studio-mode');
+  document.getElementById('scannerModalTitle').textContent = 'Photo Scan Studio';
+  document.getElementById('scannerTabs').style.display = 'none';
+  document.getElementById('paneBridge').style.display = 'none';
+  document.getElementById('scanStudioWrap').style.display = 'flex';
 
-  // Default suggested filename: Scan_YYYYMMDD_HHMMSS.jpg
+  const hwMeta = document.getElementById('scanHardwareMeta');
+  const selDevice = scannerDevices.find(d => d.id === selectedScannerId);
+  const devName = selDevice ? selDevice.name : 'Flatbed Scanner';
+  if (hwMeta) {
+    hwMeta.textContent = `${devName} \u00B7 ${scanDpi} DPI \u00B7 ${scanColorMode.toUpperCase()}`;
+  }
+
+  populateScanFolderSelect();
+
+  document.getElementById('scanContrastSlider').value = 0;
+  document.getElementById('scanBrightnessSlider').value = 0;
+  document.getElementById('scanContrastVal').textContent = '0';
+  document.getElementById('scanBrightnessVal').textContent = '0';
+
   const now = new Date();
   const ymd = now.toISOString().slice(0, 10).replace(/-/g, '');
   const hms = now.toTimeString().slice(0, 8).replace(/:/g, '');
   document.getElementById('scannedFilename').value = `Scan_${ymd}_${hms}.jpg`;
+  renderStudioTagPills();
 
-  // Meta chips
-  const chips = document.getElementById('scannedMetaChips');
-  chips.innerHTML = `
-    <span>${width || '?'} &times; ${height || '?'} px</span>
-    <span>&bull;</span>
-    <span>${scanColorMode.toUpperCase()}</span>
-    <span>&bull;</span>
-    <span>${scanDpi} DPI</span>
-  `;
-
-  renderScannedTagPills();
-  document.getElementById('scanResultCard').style.display = 'flex';
+  studioRawImage = new Image();
+  studioRawImage.onload = () => {
+    if (!studioRawWidth) studioRawWidth = studioRawImage.naturalWidth;
+    if (!studioRawHeight) studioRawHeight = studioRawImage.naturalHeight;
+    renderStudioCanvas();
+    if (!cropEventsInitialized) {
+      initCropEvents();
+      cropEventsInitialized = true;
+    }
+    autoCropPhoto();
+  };
+  studioRawImage.src = dataUrl;
 }
 
-function rotateScannedImage(deg) {
-  scannedImageRotation = (scannedImageRotation + deg) % 360;
-  const preview = document.getElementById('scannedImgPreview');
-  preview.style.transform = `rotate(${scannedImageRotation}deg)`;
+function populateScanFolderSelect() {
+  const sel = document.getElementById('scanFolderSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">All Photos (Root)</option>';
+  const folders = new Set();
+  photos.forEach(p => { if (p.folder) folders.add(p.folder); });
+  Array.from(folders).sort().forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f;
+    opt.textContent = `\uD83D\uDCC1 ${f}`;
+    if (f === currentFolder) opt.selected = true;
+    sel.appendChild(opt);
+  });
 }
 
-function flipScannedImage(dir) {
-  const preview = document.getElementById('scannedImgPreview');
-  preview.style.transform = (preview.style.transform.includes('scaleX(-1)') ? 'none' : 'scaleX(-1)') + ` rotate(${scannedImageRotation}deg)`;
+function renderStudioCanvas() {
+  if (!studioRawImage) return;
+  const canvas = document.getElementById('scanStudioCanvas');
+  const stage = document.getElementById('scanCanvasStage');
+  const wrap = document.getElementById('scanCanvasWrap');
+  if (!canvas || !stage || !wrap) return;
+
+  const rawW = studioRawImage.naturalWidth;
+  const rawH = studioRawImage.naturalHeight;
+  const orientedW = (studioRotation % 180 === 0) ? rawW : rawH;
+  const orientedH = (studioRotation % 180 === 0) ? rawH : rawW;
+
+  canvas.width = orientedW;
+  canvas.height = orientedH;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.translate(orientedW / 2, orientedH / 2);
+  ctx.rotate(studioRotation * Math.PI / 180);
+  if (studioFlipH) ctx.scale(-1, 1);
+  if (studioFlipV) ctx.scale(1, -1);
+  ctx.drawImage(studioRawImage, -rawW / 2, -rawH / 2, rawW, rawH);
+  ctx.restore();
+
+  const maxW = Math.max(160, wrap.clientWidth - 28);
+  const maxH = Math.max(160, wrap.clientHeight - 28);
+  const scale = Math.min(maxW / orientedW, maxH / orientedH, 1);
+  const dispW = Math.max(120, Math.round(orientedW * scale));
+  const dispH = Math.max(120, Math.round(orientedH * scale));
+
+  stage.style.width = dispW + 'px';
+  stage.style.height = dispH + 'px';
+
+  updateStudioAdjustments();
+  updateCropBoxDom();
+}
+
+function updateCropBoxDom() {
+  const box = document.getElementById('scanCropBox');
+  if (!box) return;
+  box.style.left = (studioCrop.x * 100) + '%';
+  box.style.top = (studioCrop.y * 100) + '%';
+  box.style.width = (studioCrop.w * 100) + '%';
+  box.style.height = (studioCrop.h * 100) + '%';
+
+  const curW = (studioRotation % 180 === 0) ? studioRawWidth : studioRawHeight;
+  const curH = (studioRotation % 180 === 0) ? studioRawHeight : studioRawWidth;
+  const selW = Math.round(studioCrop.w * curW);
+  const selH = Math.round(studioCrop.h * curH);
+  const inW = (selW / scanDpi).toFixed(1);
+  const inH = (selH / scanDpi).toFixed(1);
+  const dimLabel = document.getElementById('scanCropDimLabel');
+  if (dimLabel) {
+    dimLabel.textContent = `Crop Selection: ${selW} \u00D7 ${selH} px (${inW}" \u00D7 ${inH}" @ ${scanDpi} DPI)`;
+  }
+}
+
+function initCropEvents() {
+  const cropBoxEl = document.getElementById('scanCropBox');
+  if (!cropBoxEl) return;
+
+  cropBoxEl.addEventListener('pointerdown', (e) => {
+    if (e.target.classList.contains('crop-handle')) {
+      studioDragMode = e.target.dataset.dir;
+    } else {
+      studioDragMode = 'move';
+    }
+    studioDragStart = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      cropX: studioCrop.x,
+      cropY: studioCrop.y,
+      cropW: studioCrop.w,
+      cropH: studioCrop.h
+    };
+    cropBoxEl.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+    e.preventDefault();
+  });
+
+  cropBoxEl.addEventListener('pointermove', (e) => {
+    if (!studioDragMode) return;
+    const stage = document.getElementById('scanCanvasStage');
+    if (!stage) return;
+    const dispW = stage.clientWidth || 1;
+    const dispH = stage.clientHeight || 1;
+    const dx = (e.clientX - studioDragStart.mouseX) / dispW;
+    const dy = (e.clientY - studioDragStart.mouseY) / dispH;
+
+    if (studioDragMode === 'move') {
+      studioCrop.x = Math.max(0, Math.min(1 - studioCrop.w, studioDragStart.cropX + dx));
+      studioCrop.y = Math.max(0, Math.min(1 - studioCrop.h, studioDragStart.cropY + dy));
+    } else {
+      let nx = studioDragStart.cropX;
+      let ny = studioDragStart.cropY;
+      let nw = studioDragStart.cropW;
+      let nh = studioDragStart.cropH;
+
+      if (studioDragMode.includes('r')) nw = Math.max(0.04, Math.min(1 - nx, studioDragStart.cropW + dx));
+      if (studioDragMode.includes('b')) nh = Math.max(0.04, Math.min(1 - ny, studioDragStart.cropH + dy));
+      if (studioDragMode.includes('l')) {
+        const proposedX = Math.max(0, Math.min(studioDragStart.cropX + studioDragStart.cropW - 0.04, studioDragStart.cropX + dx));
+        nw = (studioDragStart.cropX + studioDragStart.cropW) - proposedX;
+        nx = proposedX;
+      }
+      if (studioDragMode.includes('t')) {
+        const proposedY = Math.max(0, Math.min(studioDragStart.cropY + studioDragStart.cropH - 0.04, studioDragStart.cropY + dy));
+        nh = (studioDragStart.cropY + studioDragStart.cropH) - proposedY;
+        ny = proposedY;
+      }
+
+      if (studioCropAspect !== 'free' && studioCropAspect !== 'full') {
+        let targetRatio = 1;
+        if (studioCropAspect === '4:6') targetRatio = 4 / 6;
+        else if (studioCropAspect === '5:7') targetRatio = 5 / 7;
+        else if (studioCropAspect === '1:1') targetRatio = 1;
+
+        const curW = (studioRotation % 180 === 0) ? studioRawWidth : studioRawHeight;
+        const curH = (studioRotation % 180 === 0) ? studioRawHeight : studioRawWidth;
+        const imgRatio = curW / curH;
+        nh = Math.min(1 - ny, Math.max(0.04, (nw * imgRatio) / targetRatio));
+      }
+
+      studioCrop = { x: nx, y: ny, w: nw, h: nh };
+    }
+    updateCropBoxDom();
+  });
+
+  const stopDrag = (e) => {
+    if (studioDragMode) {
+      studioDragMode = null;
+      try { cropBoxEl.releasePointerCapture(e.pointerId); } catch {}
+    }
+  };
+  cropBoxEl.addEventListener('pointerup', stopDrag);
+  cropBoxEl.addEventListener('pointercancel', stopDrag);
+}
+
+function autoCropPhoto() {
+  if (!studioRawImage) return;
+  try {
+    const thumbCanvas = document.createElement('canvas');
+    const curW = (studioRotation % 180 === 0) ? studioRawImage.naturalWidth : studioRawImage.naturalHeight;
+    const curH = (studioRotation % 180 === 0) ? studioRawImage.naturalHeight : studioRawImage.naturalWidth;
+    const sampleScale = Math.min(300 / curW, 300 / curH, 1);
+    const sw = Math.round(curW * sampleScale);
+    const sh = Math.round(curH * sampleScale);
+    thumbCanvas.width = sw;
+    thumbCanvas.height = sh;
+    const tCtx = thumbCanvas.getContext('2d');
+
+    tCtx.save();
+    tCtx.translate(sw / 2, sh / 2);
+    tCtx.rotate(studioRotation * Math.PI / 180);
+    if (studioFlipH) tCtx.scale(-1, 1);
+    if (studioFlipV) tCtx.scale(1, -1);
+    const dw = (studioRotation % 180 === 0) ? sw : sh;
+    const dh = (studioRotation % 180 === 0) ? sh : sw;
+    tCtx.drawImage(studioRawImage, -dw / 2, -dh / 2, dw, dh);
+    tCtx.restore();
+
+    const imgData = tCtx.getImageData(0, 0, sw, sh);
+    const d = imgData.data;
+
+    let bgR = 0, bgG = 0, bgB = 0, bgSamples = 0;
+    for (let x = 0; x < sw; x++) {
+      for (let y = 0; y < 3; y++) {
+        const i1 = (y * sw + x) * 4;
+        const i2 = ((sh - 1 - y) * sw + x) * 4;
+        bgR += d[i1] + d[i2]; bgG += d[i1+1] + d[i2+1]; bgB += d[i1+2] + d[i2+2];
+        bgSamples += 2;
+      }
+    }
+    for (let y = 3; y < sh - 3; y++) {
+      for (let x = 0; x < 3; x++) {
+        const i1 = (y * sw + x) * 4;
+        const i2 = (y * sw + (sw - 1 - x)) * 4;
+        bgR += d[i1] + d[i2]; bgG += d[i1+1] + d[i2+1]; bgB += d[i1+2] + d[i2+2];
+        bgSamples += 2;
+      }
+    }
+    bgR /= bgSamples; bgG /= bgSamples; bgB /= bgSamples;
+
+    function isDifferent(idx) {
+      const dr = d[idx] - bgR;
+      const dg = d[idx+1] - bgG;
+      const db = d[idx+2] - bgB;
+      return Math.sqrt(dr*dr + dg*dg + db*db) > 26;
+    }
+
+    let topY = 0;
+    for (let y = 3; y < sh / 2; y++) {
+      let diffCount = 0;
+      for (let x = 3; x < sw - 3; x++) {
+        if (isDifferent((y * sw + x) * 4)) diffCount++;
+      }
+      if (diffCount > sw * 0.12) { topY = y; break; }
+    }
+
+    let botY = sh - 1;
+    for (let y = sh - 4; y > sh / 2; y--) {
+      let diffCount = 0;
+      for (let x = 3; x < sw - 3; x++) {
+        if (isDifferent((y * sw + x) * 4)) diffCount++;
+      }
+      if (diffCount > sw * 0.12) { botY = y; break; }
+    }
+
+    let leftX = 0;
+    for (let x = 3; x < sw / 2; x++) {
+      let diffCount = 0;
+      for (let y = topY; y <= botY; y++) {
+        if (isDifferent((y * sw + x) * 4)) diffCount++;
+      }
+      if (diffCount > (botY - topY) * 0.12) { leftX = x; break; }
+    }
+
+    let rightX = sw - 1;
+    for (let x = sw - 4; x > sw / 2; x--) {
+      let diffCount = 0;
+      for (let y = topY; y <= botY; y++) {
+        if (isDifferent((y * sw + x) * 4)) diffCount++;
+      }
+      if (diffCount > (botY - topY) * 0.12) { rightX = x; break; }
+    }
+
+    const detectedW = (rightX - leftX) / sw;
+    const detectedH = (botY - topY) / sh;
+
+    if (detectedW >= 0.15 && detectedH >= 0.15 && (detectedW < 0.96 || detectedH < 0.96)) {
+      const padX = 0.01;
+      const padY = 0.01;
+      const x = Math.max(0, leftX / sw - padX);
+      const y = Math.max(0, topY / sh - padY);
+      const w = Math.min(1 - x, detectedW + padX * 2);
+      const h = Math.min(1 - y, detectedH + padY * 2);
+      studioCrop = { x, y, w, h };
+      updateCropBoxDom();
+      showToast('Auto-detected photo boundary!');
+      return;
+    }
+  } catch (err) {
+    console.warn('Auto-crop note:', err);
+  }
+
+  studioCrop = { x: 0.05, y: 0.05, w: 0.90, h: 0.90 };
+  updateCropBoxDom();
+}
+
+function setCropAspect(aspect) {
+  studioCropAspect = aspect;
+  ['Auto', 'Free', '46', '57', '11', 'Full'].forEach(k => {
+    const btn = document.getElementById(`cropAspect${k}`);
+    if (btn) btn.classList.remove('active');
+  });
+
+  if (aspect === 'free') {
+    const b = document.getElementById('cropAspectFree');
+    if (b) b.classList.add('active');
+  } else if (aspect === 'full') {
+    const b = document.getElementById('cropAspectFull');
+    if (b) b.classList.add('active');
+    studioCrop = { x: 0, y: 0, w: 1, h: 1 };
+    updateCropBoxDom();
+    return;
+  } else {
+    const idMap = { '4:6': '46', '5:7': '57', '1:1': '11' };
+    const b = document.getElementById(`cropAspect${idMap[aspect]}`);
+    if (b) b.classList.add('active');
+
+    let targetRatio = 1;
+    if (aspect === '4:6') targetRatio = 4 / 6;
+    else if (aspect === '5:7') targetRatio = 5 / 7;
+
+    const curW = (studioRotation % 180 === 0) ? studioRawWidth : studioRawHeight;
+    const curH = (studioRotation % 180 === 0) ? studioRawHeight : studioRawWidth;
+    const imgRatio = curW / curH;
+
+    let nw = 0.8;
+    let nh = (nw * imgRatio) / targetRatio;
+    if (nh > 0.9) {
+      nh = 0.9;
+      nw = (nh * targetRatio) / imgRatio;
+    }
+    studioCrop = {
+      x: Math.max(0, (1 - nw) / 2),
+      y: Math.max(0, (1 - nh) / 2),
+      w: Math.min(1, nw),
+      h: Math.min(1, nh)
+    };
+    updateCropBoxDom();
+  }
+}
+
+function rotateStudioImage(deg) {
+  studioRotation = (studioRotation + deg + 360) % 360;
+  renderStudioCanvas();
+  autoCropPhoto();
+}
+
+function flipStudioImage(dir) {
+  if (dir === 'h') studioFlipH = !studioFlipH;
+  if (dir === 'v') studioFlipV = !studioFlipV;
+  renderStudioCanvas();
+}
+
+function updateStudioAdjustments() {
+  const canvas = document.getElementById('scanStudioCanvas');
+  const cSlider = document.getElementById('scanContrastSlider');
+  const bSlider = document.getElementById('scanBrightnessSlider');
+  const cVal = document.getElementById('scanContrastVal');
+  const bVal = document.getElementById('scanBrightnessVal');
+
+  if (cSlider) studioContrast = parseInt(cSlider.value, 10) || 0;
+  if (bSlider) studioBrightness = parseInt(bSlider.value, 10) || 0;
+  if (cVal) cVal.textContent = (studioContrast > 0 ? '+' : '') + studioContrast;
+  if (bVal) bVal.textContent = (studioBrightness > 0 ? '+' : '') + studioBrightness;
+
+  if (canvas) {
+    const c = 1 + studioContrast / 50;
+    const b = 1 + studioBrightness / 50;
+    canvas.style.filter = `contrast(${c}) brightness(${b})`;
+  }
+}
+
+function autoEnhancePhoto() {
+  if (!studioRawImage) return;
+  try {
+    const c = document.createElement('canvas');
+    c.width = 160; c.height = 160;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(studioRawImage, 0, 0, 160, 160);
+    const d = ctx.getImageData(0, 0, 160, 160).data;
+
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = Math.round(0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]);
+      hist[lum]++;
+    }
+    const total = 160 * 160;
+    let minLum = 0, maxLum = 255;
+    let acc = 0;
+    for (let i = 0; i < 256; i++) {
+      acc += hist[i];
+      if (acc > total * 0.03) { minLum = i; break; }
+    }
+    acc = 0;
+    for (let i = 255; i >= 0; i--) {
+      acc += hist[i];
+      if (acc > total * 0.03) { maxLum = i; break; }
+    }
+    const spread = Math.max(10, maxLum - minLum);
+    const contrastBoost = Math.min(35, Math.max(5, Math.round((255 / spread - 1) * 25)));
+    const mid = (minLum + maxLum) / 2;
+    const brightShift = Math.min(25, Math.max(-25, Math.round((128 - mid) * 0.25)));
+
+    document.getElementById('scanContrastSlider').value = contrastBoost;
+    document.getElementById('scanBrightnessSlider').value = brightShift;
+    updateStudioAdjustments();
+    showToast('Applied vintage contrast normalization!');
+  } catch (e) {
+    showToast('Auto-enhancement note: ' + e.message);
+  }
+}
+
+function resetStudioAdjustments() {
+  document.getElementById('scanContrastSlider').value = 0;
+  document.getElementById('scanBrightnessSlider').value = 0;
+  updateStudioAdjustments();
 }
 
 function addScannedTag() {
@@ -3691,31 +4258,37 @@ function addScannedTag() {
   const cat = document.getElementById('scanCatSelect').value;
   const name = input.value.trim();
   if (!name) return;
-  if (!scannedTags.some(t => t.name.toLowerCase() === name.toLowerCase())) {
-    scannedTags.push({ name, cat });
-    renderScannedTagPills();
+  if (!studioTags.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+    studioTags.push({ name, cat });
+    renderStudioTagPills();
   }
   input.value = '';
 }
 
-function removeScannedTag(idx) {
-  scannedTags.splice(idx, 1);
-  renderScannedTagPills();
+function removeStudioTag(idx) {
+  studioTags.splice(idx, 1);
+  renderStudioTagPills();
 }
 
-function renderScannedTagPills() {
+function renderStudioTagPills() {
   const container = document.getElementById('scannedTagsPills');
-  container.innerHTML = scannedTags.map((t, idx) => `
+  container.innerHTML = studioTags.map((t, idx) => `
     <span class="tag-pill ${t.cat || 'other'}">
       #${t.name}
-      <span class="remove-tag" onclick="removeScannedTag(${idx})">&times;</span>
+      <span class="remove-tag" onclick="removeStudioTag(${idx})">&times;</span>
     </span>
   `).join('');
 }
 
-function resetScannedCard() {
-  scannedImageData = null;
-  document.getElementById('scanResultCard').style.display = 'none';
+function resetStudioToScan() {
+  document.getElementById('scannerCard').classList.remove('studio-mode');
+  document.getElementById('scannerTabs').style.display = 'flex';
+  document.getElementById('paneBridge').style.display = 'block';
+  document.getElementById('bridgeOnlineBox').style.display = 'block';
+  document.getElementById('scanActiveBox').style.display = 'none';
+  document.getElementById('scanStudioWrap').style.display = 'none';
+  document.getElementById('scannerModalTitle').textContent = 'Scan Photos';
+  studioRawImage = null;
 }
 
 function downloadDataUrl(dataUrl, filename) {
@@ -3727,63 +4300,151 @@ function downloadDataUrl(dataUrl, filename) {
   document.body.removeChild(a);
 }
 
-function downloadScannedPhoto() {
-  if (!scannedImageData) return;
-  const filename = document.getElementById('scannedFilename').value.trim() || 'Scan.jpg';
-  downloadDataUrl(scannedImageData, filename);
-  showToast(`Downloaded "${filename}"`);
+async function downloadScannedPhoto() {
+  if (!studioRawImage) return;
+  try {
+    const rawW = studioRawImage.naturalWidth;
+    const rawH = studioRawImage.naturalHeight;
+    const orientedW = (studioRotation % 180 === 0) ? rawW : rawH;
+    const orientedH = (studioRotation % 180 === 0) ? rawH : rawW;
+
+    const cropX = Math.round(studioCrop.x * orientedW);
+    const cropY = Math.round(studioCrop.y * orientedH);
+    const cropW = Math.max(50, Math.round(studioCrop.w * orientedW));
+    const cropH = Math.max(50, Math.round(studioCrop.h * orientedH));
+
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = cropW;
+    finalCanvas.height = cropH;
+    const ctx = finalCanvas.getContext('2d');
+
+    ctx.save();
+    const contrastVal = 1 + studioContrast / 50;
+    const brightVal = 1 + studioBrightness / 50;
+    ctx.filter = `contrast(${contrastVal}) brightness(${brightVal})`;
+
+    ctx.translate(-cropX, -cropY);
+    ctx.translate(orientedW / 2, orientedH / 2);
+    ctx.rotate(studioRotation * Math.PI / 180);
+    if (studioFlipH) ctx.scale(-1, 1);
+    if (studioFlipV) ctx.scale(1, -1);
+    ctx.drawImage(studioRawImage, -rawW / 2, -rawH / 2, rawW, rawH);
+    ctx.restore();
+
+    let filename = document.getElementById('scannedFilename').value.trim() || 'Scan.jpg';
+    if (!filename.toLowerCase().endsWith('.jpg') && !filename.toLowerCase().endsWith('.jpeg')) {
+      filename += '.jpg';
+    }
+
+    const dataUrl = finalCanvas.toDataURL('image/jpeg', 0.92);
+    downloadDataUrl(dataUrl, filename);
+    showToast(`Downloaded "${filename}"`);
+  } catch (err) {
+    showToast('Download failed: ' + err.message);
+  }
 }
 
 async function saveScannedPhotoToVault() {
-  if (!scannedImageData) return;
-  const filename = document.getElementById('scannedFilename').value.trim() || `Scan_${Date.now()}.jpg`;
+  if (!studioRawImage) return;
 
-  // Convert base64 data to blob
-  const base64Data = scannedImageData.split(',')[1];
-  const binary = atob(base64Data);
-  const array = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-  const blob = new Blob([array], { type: 'image/jpeg' });
-  const file = new File([blob], filename, { type: 'image/jpeg', lastModified: Date.now() });
+  const saveBtn = document.getElementById('saveScanToVaultBtn');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span>Saving to Vault&#8230;</span>';
 
-  // If rootHandle is available, write directly to user's folder on disk
-  if (rootHandle) {
-    try {
-      const fileHandle = await rootHandle.getFileHandle(filename, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      showToast(`Saved "${filename}" directly to your folder!`);
-    } catch (e) {
-      console.warn('Could not write directly to disk:', e);
-      downloadDataUrl(scannedImageData, filename);
+  try {
+    const rawW = studioRawImage.naturalWidth;
+    const rawH = studioRawImage.naturalHeight;
+    const orientedW = (studioRotation % 180 === 0) ? rawW : rawH;
+    const orientedH = (studioRotation % 180 === 0) ? rawH : rawW;
+
+    const cropX = Math.round(studioCrop.x * orientedW);
+    const cropY = Math.round(studioCrop.y * orientedH);
+    const cropW = Math.max(50, Math.round(studioCrop.w * orientedW));
+    const cropH = Math.max(50, Math.round(studioCrop.h * orientedH));
+
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = cropW;
+    finalCanvas.height = cropH;
+    const ctx = finalCanvas.getContext('2d');
+
+    ctx.save();
+    const contrastVal = 1 + studioContrast / 50;
+    const brightVal = 1 + studioBrightness / 50;
+    ctx.filter = `contrast(${contrastVal}) brightness(${brightVal})`;
+
+    ctx.translate(-cropX, -cropY);
+    ctx.translate(orientedW / 2, orientedH / 2);
+    ctx.rotate(studioRotation * Math.PI / 180);
+    if (studioFlipH) ctx.scale(-1, 1);
+    if (studioFlipV) ctx.scale(1, -1);
+    ctx.drawImage(studioRawImage, -rawW / 2, -rawH / 2, rawW, rawH);
+    ctx.restore();
+
+    const blob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.92));
+    let filename = document.getElementById('scannedFilename').value.trim();
+    if (!filename) filename = `Scan_${Date.now()}.jpg`;
+    if (!filename.toLowerCase().endsWith('.jpg') && !filename.toLowerCase().endsWith('.jpeg')) {
+      filename += '.jpg';
     }
-  } else {
-    downloadDataUrl(scannedImageData, filename);
-    showToast(`Downloaded "${filename}" and added to current vault`);
+
+    const targetFolder = document.getElementById('scanFolderSelect').value || currentFolder || '';
+    const file = new File([blob], filename, { type: 'image/jpeg', lastModified: Date.now() });
+
+    if (rootHandle) {
+      try {
+        let destDir = rootHandle;
+        if (targetFolder) {
+          const parts = targetFolder.split('/');
+          for (const part of parts) {
+            if (part) destDir = await destDir.getDirectoryHandle(part, { create: true });
+          }
+        }
+        const fileHandle = await destDir.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } catch (diskErr) {
+        console.warn('Could not write directly to disk:', diskErr);
+      }
+    }
+
+    const id = filename + '_' + blob.size;
+    const newPhoto = {
+      id,
+      name: filename,
+      size: blob.size,
+      file,
+      folder: targetFolder,
+      tags: studioTags.slice(),
+      isTiff: false,
+      width: cropW,
+      height: cropH
+    };
+
+    photos.unshift(newPhoto);
+    await dbPutPreview(id, blob);
+    await dbSavePhoto(newPhoto);
+
+    try {
+      if (typeof computeImagePerceptualFingerprint === 'function') {
+        const fp = await computeImagePerceptualFingerprint(blob);
+        if (fp) await dbPutHash(id, fp);
+      }
+    } catch {}
+
+    closeScannerModal();
+    updateSidebar();
+    renderGrid();
+    showToast(`Saved "${filename}" directly into PhotoVault!`);
+  } catch (err) {
+    showToast('Failed to save scanned photo: ' + err.message);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = `
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span>Save Cropped Photo to Vault</span>
+    `;
   }
-
-  // Create photo object in vault
-  const id = filename + '_' + blob.size;
-  const newPhoto = {
-    id,
-    name: filename,
-    size: blob.size,
-    file,
-    folder: currentFolder || '',
-    tags: scannedTags.slice(),
-    isTiff: false,
-    width: scannedImageWidth || 0,
-    height: scannedImageHeight || 0
-  };
-
-  photos.unshift(newPhoto);
-  dbPutPreview(id, blob);
-  dbSavePhoto(newPhoto);
-
-  closeScannerModal();
-  updateSidebar();
-  renderGrid();
 }
 
 // WebHID Direct support

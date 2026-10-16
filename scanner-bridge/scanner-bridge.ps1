@@ -120,30 +120,70 @@ while ($listener.IsListening) {
 
             $jpegGuid = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}"
 
-            try {
-                $cd = New-Object -ComObject WIA.CommonDialog
-                $image = $null
-                
-                # Use acquire image dialog for interactive scan preview & crop
-                $image = $cd.ShowAcquireImage(1, $intent, 131072, $jpegGuid, $false, $true, $false)
+            $bmpGuid = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}"
+            $jpegGuid = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}"
 
-                if ($image -eq $null) {
-                    Send-JsonResponse $response (@{ success = $false; error = "Scan was cancelled" } | ConvertTo-Json)
+            try {
+                $dm = New-Object -ComObject WIA.DeviceManager
+                $dev = $null
+                foreach ($d in $dm.DeviceInfos) {
+                    if (!$deviceId -or $d.DeviceID -eq $deviceId -or $d.DeviceID.Contains($deviceId)) {
+                        Write-Host "Connecting to $($d.Properties.Item('Name').Value)..." -ForegroundColor Cyan
+                        $dev = $d.Connect()
+                        break
+                    }
+                }
+                if (!$dev -and $dm.DeviceInfos.Count -gt 0) {
+                    $dev = $dm.DeviceInfos.Item(1).Connect()
+                }
+
+                if (!$dev) {
+                    Send-JsonResponse $response (@{ success = $false; error = "No scanner connected" } | ConvertTo-Json) 404
                     continue
                 }
 
-                $bytes = $image.FileData.BinaryData
-                $base64 = [Convert]::ToBase64String($bytes)
+                $item = $dev.Items.Item(1)
+                # Safely set intent and resolution
+                foreach ($p in $item.Properties) {
+                    if ($p.PropertyID -eq 6146) { try { $p.Value = $intent } catch {} }
+                    if ($p.PropertyID -eq 6147) { try { $p.Value = $dpi } catch {} }
+                    if ($p.PropertyID -eq 6148) { try { $p.Value = $dpi } catch {} }
+                }
+
+                Write-Host "Scanning from sensor directly (no external window)..." -ForegroundColor Cyan
+                $image = $null
+                try {
+                    $image = $item.Transfer($bmpGuid)
+                } catch {
+                    $image = $item.Transfer($jpegGuid)
+                }
+
+                if ($image -eq $null) {
+                    Send-JsonResponse $response (@{ success = $false; error = "Scan produced no image" } | ConvertTo-Json) 500
+                    continue
+                }
+
+                $rawBytes = $image.FileData.BinaryData
+                [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing") | Out-Null
+                $msIn = New-Object System.IO.MemoryStream(,$rawBytes)
+                $bitmap = [System.Drawing.Image]::FromStream($msIn)
+                $msOut = New-Object System.IO.MemoryStream
+                $bitmap.Save($msOut, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+                $jpegBytes = $msOut.ToArray()
+                $base64 = [Convert]::ToBase64String($jpegBytes)
                 $w = $image.Width
                 $h = $image.Height
+                $bitmap.Dispose()
+                $msIn.Dispose()
+                $msOut.Dispose()
 
-                Write-Host "Scan completed: ${w}x${h}, $([math]::Round($bytes.Length/1024)) KB" -ForegroundColor Green
+                Write-Host "Scan completed! Dimensions: ${w}x${h}, $([math]::Round($jpegBytes.Length/1024)) KB JPEG" -ForegroundColor Green
 
                 $respObj = @{
                     success = $true
                     width = $w
                     height = $h
-                    size = $bytes.Length
+                    size = $jpegBytes.Length
                     mime = "image/jpeg"
                     data = "data:image/jpeg;base64,$base64"
                 }
