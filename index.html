@@ -314,7 +314,7 @@
 
   /* ==================== SCANNER MODAL & IN-APP SCAN STUDIO ==================== */
   .scanner-overlay {
-    display: none; position: fixed; inset: 0; z-index: 150;
+    display: none; position: fixed; inset: 0; z-index: 500;
     background: var(--lb-bg); backdrop-filter: blur(6px);
     align-items: center; justify-content: center; padding: 20px;
   }
@@ -1019,6 +1019,8 @@
     <h3>Privacy &amp; storage</h3>
     <p>Everything is processed in your browser. Thumbnails, tags and preferences are stored locally (IndexedDB &amp; browser storage). Nothing is uploaded anywhere.</p>
   </div>
+</div>
+
 <!-- SCANNER MODAL & IN-APP SCAN STUDIO -->
 <div class="scanner-overlay" id="scannerOverlay">
   <div class="scanner-card" id="scannerCard">
