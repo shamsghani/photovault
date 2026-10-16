@@ -379,7 +379,8 @@
   .bridge-actions-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
   .bridge-auto-hint { font-size: 11.5px; color: var(--text-3); font-style: italic; }
   .scanner-form-row { display: flex; flex-direction: column; gap: 6px; }
-  .scanner-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .scanner-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  .scanner-body .seg-toggle .seg-btn { flex: 1; text-align: center; padding: 6px 4px; }
   .scanner-form-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
 
   /* Animated Scanner Activity */
@@ -1086,9 +1087,10 @@
             <div>
               <label class="scanner-form-label">Resolution (DPI)</label>
               <div class="seg-toggle" style="width:100%">
-                <button class="seg-btn" id="dpi200" onclick="setScanDpi(200)">200 (Draft)</button>
-                <button class="seg-btn active" id="dpi300" onclick="setScanDpi(300)">300 (Photo)</button>
-                <button class="seg-btn" id="dpi600" onclick="setScanDpi(600)">600 (Hi-Res)</button>
+                <button class="seg-btn" id="dpi200" onclick="setScanDpi(200)">200</button>
+                <button class="seg-btn active" id="dpi300" onclick="setScanDpi(300)">300</button>
+                <button class="seg-btn" id="dpi600" onclick="setScanDpi(600)">600</button>
+                <button class="seg-btn" id="dpi1200" onclick="setScanDpi(1200)">1200 (Raw)</button>
               </div>
             </div>
             <div>
@@ -1099,7 +1101,15 @@
                 <button class="seg-btn" id="modeBw" onclick="setScanMode('bw')">B &amp; W</button>
               </div>
             </div>
+            <div>
+              <label class="scanner-form-label">Output Format</label>
+              <div class="seg-toggle" style="width:100%">
+                <button class="seg-btn active" id="fmtJpeg" onclick="setScanFormat('jpeg')">JPEG</button>
+                <button class="seg-btn" id="fmtTiff" onclick="setScanFormat('tiff')">TIFF (Raw)</button>
+              </div>
+            </div>
           </div>
+          <div id="archivalNotice" style="display:none;margin-top:12px;padding:9px 13px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.28);border-radius:6px;font-size:12px;color:var(--text-1);line-height:1.45"></div>
 
           <div style="margin-top:20px;display:flex;gap:12px;align-items:center">
             <button class="empty-cta" id="startScanBtn" onclick="triggerScan()" style="padding:11px 26px;display:inline-flex;align-items:center;gap:8px;font-size:13.5px">
@@ -3644,6 +3654,7 @@ let scannerDevices = [];
 let selectedScannerId = '';
 let scanDpi = 300;
 let scanColorMode = 'color';
+let scanFormat = 'jpeg';
 let scanCheckTimer = null;
 let cameraStream = null;
 let connectedHidDevice = null;
@@ -3651,6 +3662,9 @@ let connectedHidDevice = null;
 // Scan Studio State
 let studioRawImage = null;
 let studioRawDataUrl = null;
+let studioPreviewDataUrl = null;
+let studioScanFormat = 'jpeg';
+let studioScanDpi = 300;
 let studioRawWidth = 0;
 let studioRawHeight = 0;
 let studioRotation = 0;
@@ -3764,10 +3778,15 @@ async function checkScannerBridge(isManual) {
 
 function setScanDpi(dpi) {
   scanDpi = dpi;
-  [200, 300, 600].forEach(d => {
+  [200, 300, 600, 1200].forEach(d => {
     const btn = document.getElementById(`dpi${d}`);
     if (btn) btn.classList.toggle('active', d === dpi);
   });
+  if (dpi === 1200 && scanFormat !== 'tiff') {
+    setScanFormat('tiff');
+  } else {
+    updateArchivalNotice();
+  }
 }
 
 function setScanMode(mode) {
@@ -3775,6 +3794,32 @@ function setScanMode(mode) {
   document.getElementById('modeColor').classList.toggle('active', mode === 'color');
   document.getElementById('modeGray').classList.toggle('active', mode === 'grayscale');
   document.getElementById('modeBw').classList.toggle('active', mode === 'bw');
+}
+
+function setScanFormat(fmt) {
+  scanFormat = fmt;
+  const jBtn = document.getElementById('fmtJpeg');
+  const tBtn = document.getElementById('fmtTiff');
+  if (jBtn) jBtn.classList.toggle('active', fmt === 'jpeg');
+  if (tBtn) tBtn.classList.toggle('active', fmt === 'tiff');
+  updateArchivalNotice();
+}
+
+function updateArchivalNotice() {
+  const notice = document.getElementById('archivalNotice');
+  if (!notice) return;
+  if (scanDpi === 1200 || scanFormat === 'tiff') {
+    notice.style.display = 'block';
+    if (scanDpi === 1200 && scanFormat === 'tiff') {
+      notice.innerHTML = '<strong>✨ 1200 DPI TIFF RAW Mode:</strong> Maximum optical sensor resolution with lossless raw acquisition. Scans will be preserved as archival master .tif files.';
+    } else if (scanFormat === 'tiff') {
+      notice.innerHTML = `<strong>✨ ${scanDpi} DPI TIFF RAW Mode:</strong> Lossless uncompressed raw scan saved as archival master .tif.`;
+    } else {
+      notice.innerHTML = `<strong>✨ 1200 DPI High-Res Mode:</strong> Ultra-dense optical sampling for fine photo detail (compressed JPEG).`;
+    }
+  } else {
+    notice.style.display = 'none';
+  }
 }
 
 async function triggerScan() {
@@ -3787,12 +3832,13 @@ async function triggerScan() {
 
   onlineBox.style.display = 'none';
   activeBox.style.display = 'flex';
-  statusText.textContent = `Scanning hardware sensor at ${scanDpi} DPI (${scanColorMode.toUpperCase()}). Zero external windows.`;
+  statusText.textContent = `Scanning optical sensor at ${scanDpi} DPI (${scanColorMode.toUpperCase()}, ${scanFormat.toUpperCase()}${scanFormat === 'tiff' ? ' RAW' : ''}). Zero external windows.`;
 
   try {
     const payload = {
       dpi: scanDpi,
       colorMode: scanColorMode,
+      format: scanFormat,
       deviceId
     };
 
@@ -3805,10 +3851,10 @@ async function triggerScan() {
     });
 
     const data = await res.json();
-    if (data.success && data.data) {
+    if (data.success && (data.data || data.preview)) {
       activeBox.style.display = 'none';
-      enterScanStudio(data.data, data.width, data.height);
-      showToast('Scan acquired! Opening in-app studio...');
+      enterScanStudio(data);
+      showToast(`Scan acquired! (${data.width}\u00D7${data.height} @ ${data.dpi || scanDpi} DPI ${data.format ? data.format.toUpperCase() : scanFormat.toUpperCase()})`);
     } else {
       activeBox.style.display = 'none';
       onlineBox.style.display = 'block';
@@ -3821,8 +3867,26 @@ async function triggerScan() {
   }
 }
 
-function enterScanStudio(dataUrl, width, height) {
+function enterScanStudio(dataOrUrl, width, height) {
+  let dataUrl, previewUrl, fmt, dpiVal;
+  if (typeof dataOrUrl === 'object' && dataOrUrl !== null) {
+    dataUrl = dataOrUrl.data;
+    previewUrl = dataOrUrl.preview || dataOrUrl.data;
+    width = dataOrUrl.width || width || 0;
+    height = dataOrUrl.height || height || 0;
+    fmt = dataOrUrl.format || scanFormat;
+    dpiVal = dataOrUrl.dpi || scanDpi;
+  } else {
+    dataUrl = dataOrUrl;
+    previewUrl = dataOrUrl;
+    fmt = scanFormat;
+    dpiVal = scanDpi;
+  }
+
   studioRawDataUrl = dataUrl;
+  studioPreviewDataUrl = previewUrl;
+  studioScanFormat = fmt || 'jpeg';
+  studioScanDpi = dpiVal || 300;
   studioRawWidth = width || 0;
   studioRawHeight = height || 0;
   studioRotation = 0;
@@ -3845,7 +3909,7 @@ function enterScanStudio(dataUrl, width, height) {
   const selDevice = scannerDevices.find(d => d.id === selectedScannerId);
   const devName = selDevice ? selDevice.name : 'Flatbed Scanner';
   if (hwMeta) {
-    hwMeta.textContent = `${devName} \u00B7 ${scanDpi} DPI \u00B7 ${scanColorMode.toUpperCase()}`;
+    hwMeta.textContent = `${devName} \u00B7 ${studioScanDpi} DPI \u00B7 ${scanColorMode.toUpperCase()} \u00B7 ${studioScanFormat.toUpperCase()}${studioScanFormat === 'tiff' ? ' RAW' : ''}`;
   }
 
   populateScanFolderSelect();
@@ -3858,7 +3922,8 @@ function enterScanStudio(dataUrl, width, height) {
   const now = new Date();
   const ymd = now.toISOString().slice(0, 10).replace(/-/g, '');
   const hms = now.toTimeString().slice(0, 8).replace(/:/g, '');
-  document.getElementById('scannedFilename').value = `Scan_${ymd}_${hms}.jpg`;
+  const ext = (studioScanFormat === 'tiff') ? 'tif' : 'jpg';
+  document.getElementById('scannedFilename').value = `Scan_${ymd}_${hms}_${studioScanDpi}dpi.${ext}`;
   renderStudioTagPills();
 
   studioRawImage = new Image();
@@ -3872,7 +3937,7 @@ function enterScanStudio(dataUrl, width, height) {
     }
     autoCropPhoto();
   };
-  studioRawImage.src = dataUrl;
+  studioRawImage.src = studioPreviewDataUrl;
 }
 
 function populateScanFolderSelect() {
@@ -3938,11 +4003,12 @@ function updateCropBoxDom() {
   const curH = (studioRotation % 180 === 0) ? studioRawHeight : studioRawWidth;
   const selW = Math.round(studioCrop.w * curW);
   const selH = Math.round(studioCrop.h * curH);
-  const inW = (selW / scanDpi).toFixed(1);
-  const inH = (selH / scanDpi).toFixed(1);
+  const curDpi = studioScanDpi || scanDpi || 300;
+  const inW = (selW / curDpi).toFixed(1);
+  const inH = (selH / curDpi).toFixed(1);
   const dimLabel = document.getElementById('scanCropDimLabel');
   if (dimLabel) {
-    dimLabel.textContent = `Crop Selection: ${selW} \u00D7 ${selH} px (${inW}" \u00D7 ${inH}" @ ${scanDpi} DPI)`;
+    dimLabel.textContent = `Crop Selection: ${selW} \u00D7 ${selH} px (${inW}" \u00D7 ${inH}" @ ${curDpi} DPI \u00B7 ${studioScanFormat.toUpperCase()})`;
   }
 }
 
@@ -4320,32 +4386,84 @@ async function downloadScannedPhoto() {
     const cropW = Math.max(50, Math.round(studioCrop.w * orientedW));
     const cropH = Math.max(50, Math.round(studioCrop.h * orientedH));
 
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = cropW;
-    finalCanvas.height = cropH;
-    const ctx = finalCanvas.getContext('2d');
+    const isTiffMode = (studioScanFormat === 'tiff');
+    let filename = document.getElementById('scannedFilename').value.trim() || `Scan_${Date.now()}.${isTiffMode ? 'tif' : 'jpg'}`;
 
-    ctx.save();
-    const contrastVal = 1 + studioContrast / 50;
-    const brightVal = 1 + studioBrightness / 50;
-    ctx.filter = `contrast(${contrastVal}) brightness(${brightVal})`;
+    if (isTiffMode) {
+      if (!filename.toLowerCase().endsWith('.tif') && !filename.toLowerCase().endsWith('.tiff')) {
+        filename += '.tif';
+      }
 
-    ctx.translate(-cropX, -cropY);
-    ctx.translate(orientedW / 2, orientedH / 2);
-    ctx.rotate(studioRotation * Math.PI / 180);
-    if (studioFlipH) ctx.scale(-1, 1);
-    if (studioFlipV) ctx.scale(1, -1);
-    ctx.drawImage(studioRawImage, -rawW / 2, -rawH / 2, rawW, rawH);
-    ctx.restore();
+      // If user kept full uncropped frame with no color adjustments and we have raw TIFF data URL from bridge:
+      const isUnmodified = (studioCrop.w > 0.99 && studioCrop.h > 0.99 && studioRotation === 0 && !studioFlipH && !studioFlipV && studioContrast === 0 && studioBrightness === 0);
+      if (isUnmodified && studioRawDataUrl && studioRawDataUrl.startsWith('data:image/tiff')) {
+        const rawBlob = await (await fetch(studioRawDataUrl)).blob();
+        const blobUrl = URL.createObjectURL(rawBlob);
+        downloadDataUrl(blobUrl, filename);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        showToast(`Downloaded raw archival TIFF: "${filename}"`);
+        return;
+      }
 
-    let filename = document.getElementById('scannedFilename').value.trim() || 'Scan.jpg';
-    if (!filename.toLowerCase().endsWith('.jpg') && !filename.toLowerCase().endsWith('.jpeg')) {
-      filename += '.jpg';
+      // If cropped or adjusted, render canvas and encode genuine TIFF via UTIF
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = cropW;
+      finalCanvas.height = cropH;
+      const ctx = finalCanvas.getContext('2d');
+
+      ctx.save();
+      const contrastVal = 1 + studioContrast / 50;
+      const brightVal = 1 + studioBrightness / 50;
+      ctx.filter = `contrast(${contrastVal}) brightness(${brightVal})`;
+
+      ctx.translate(-cropX, -cropY);
+      ctx.translate(orientedW / 2, orientedH / 2);
+      ctx.rotate(studioRotation * Math.PI / 180);
+      if (studioFlipH) ctx.scale(-1, 1);
+      if (studioFlipV) ctx.scale(1, -1);
+      ctx.drawImage(studioRawImage, -rawW / 2, -rawH / 2, rawW, rawH);
+      ctx.restore();
+
+      const imgData = ctx.getImageData(0, 0, cropW, cropH);
+      let tiffBlob;
+      if (window.UTIF && typeof UTIF.encodeImage === 'function') {
+        const tiffBuffer = UTIF.encodeImage(imgData.data, cropW, cropH);
+        tiffBlob = new Blob([tiffBuffer], { type: 'image/tiff' });
+      } else {
+        tiffBlob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.95));
+      }
+
+      const blobUrl = URL.createObjectURL(tiffBlob);
+      downloadDataUrl(blobUrl, filename);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      showToast(`Downloaded archival TIFF: "${filename}"`);
+    } else {
+      if (!filename.toLowerCase().endsWith('.jpg') && !filename.toLowerCase().endsWith('.jpeg')) {
+        filename += '.jpg';
+      }
+
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = cropW;
+      finalCanvas.height = cropH;
+      const ctx = finalCanvas.getContext('2d');
+
+      ctx.save();
+      const contrastVal = 1 + studioContrast / 50;
+      const brightVal = 1 + studioBrightness / 50;
+      ctx.filter = `contrast(${contrastVal}) brightness(${brightVal})`;
+
+      ctx.translate(-cropX, -cropY);
+      ctx.translate(orientedW / 2, orientedH / 2);
+      ctx.rotate(studioRotation * Math.PI / 180);
+      if (studioFlipH) ctx.scale(-1, 1);
+      if (studioFlipV) ctx.scale(1, -1);
+      ctx.drawImage(studioRawImage, -rawW / 2, -rawH / 2, rawW, rawH);
+      ctx.restore();
+
+      const dataUrl = finalCanvas.toDataURL('image/jpeg', 0.92);
+      downloadDataUrl(dataUrl, filename);
+      showToast(`Downloaded "${filename}"`);
     }
-
-    const dataUrl = finalCanvas.toDataURL('image/jpeg', 0.92);
-    downloadDataUrl(dataUrl, filename);
-    showToast(`Downloaded "${filename}"`);
   } catch (err) {
     showToast('Download failed: ' + err.message);
   }
@@ -4387,15 +4505,45 @@ async function saveScannedPhotoToVault() {
     ctx.drawImage(studioRawImage, -rawW / 2, -rawH / 2, rawW, rawH);
     ctx.restore();
 
-    const blob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.92));
+    const isTiffMode = (studioScanFormat === 'tiff');
+    let blob;
+    let previewBlob;
+
+    if (isTiffMode) {
+      // Fast thumbnail preview for grid and instant IndexedDB display
+      previewBlob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.88));
+
+      const isUnmodified = (studioCrop.w > 0.99 && studioCrop.h > 0.99 && studioRotation === 0 && !studioFlipH && !studioFlipV && studioContrast === 0 && studioBrightness === 0);
+      if (isUnmodified && studioRawDataUrl && studioRawDataUrl.startsWith('data:image/tiff')) {
+        blob = await (await fetch(studioRawDataUrl)).blob();
+      } else {
+        const imgData = ctx.getImageData(0, 0, cropW, cropH);
+        if (window.UTIF && typeof UTIF.encodeImage === 'function') {
+          const tiffBuf = UTIF.encodeImage(imgData.data, cropW, cropH);
+          blob = new Blob([tiffBuf], { type: 'image/tiff' });
+        } else {
+          blob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.95));
+        }
+      }
+    } else {
+      blob = await new Promise(res => finalCanvas.toBlob(res, 'image/jpeg', 0.92));
+      previewBlob = blob;
+    }
+
     let filename = document.getElementById('scannedFilename').value.trim();
-    if (!filename) filename = `Scan_${Date.now()}.jpg`;
-    if (!filename.toLowerCase().endsWith('.jpg') && !filename.toLowerCase().endsWith('.jpeg')) {
-      filename += '.jpg';
+    if (!filename) filename = `Scan_${Date.now()}.${isTiffMode ? 'tif' : 'jpg'}`;
+    if (isTiffMode) {
+      if (!filename.toLowerCase().endsWith('.tif') && !filename.toLowerCase().endsWith('.tiff')) {
+        filename += '.tif';
+      }
+    } else {
+      if (!filename.toLowerCase().endsWith('.jpg') && !filename.toLowerCase().endsWith('.jpeg')) {
+        filename += '.jpg';
+      }
     }
 
     const targetFolder = document.getElementById('scanFolderSelect').value || currentFolder || '';
-    const file = new File([blob], filename, { type: 'image/jpeg', lastModified: Date.now() });
+    const file = new File([blob], filename, { type: isTiffMode ? 'image/tiff' : 'image/jpeg', lastModified: Date.now() });
 
     if (rootHandle) {
       try {
@@ -4423,18 +4571,19 @@ async function saveScannedPhotoToVault() {
       file,
       folder: targetFolder,
       tags: studioTags.slice(),
-      isTiff: false,
+      isTiff: isTiffMode,
       width: cropW,
-      height: cropH
+      height: cropH,
+      dpi: studioScanDpi
     };
 
     photos.unshift(newPhoto);
-    await dbPutPreview(id, blob);
+    await dbPutPreview(id, previewBlob || blob);
     await dbSavePhoto(newPhoto);
 
     try {
       if (typeof computeImagePerceptualFingerprint === 'function') {
-        const fp = await computeImagePerceptualFingerprint(blob);
+        const fp = await computeImagePerceptualFingerprint(previewBlob || blob);
         if (fp) await dbPutHash(id, fp);
       }
     } catch {}

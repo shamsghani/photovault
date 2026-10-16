@@ -17,11 +17,11 @@ namespace PhotoVault.ScannerBridge
 
         static void Main(string[] args)
         {
-            Console.Title = "PhotoVault Scanner Bridge (Zero-UI Direct Mode)";
+            Console.Title = "PhotoVault Scanner Bridge (1200 DPI & TIFF RAW Supported)";
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("=================================================");
-            Console.WriteLine("      PhotoVault Direct Scanner Bridge v1.2      ");
-            Console.WriteLine("        (100% Web UI - Zero External Windows)    ");
+            Console.WriteLine("      PhotoVault Direct Scanner Bridge v1.3      ");
+            Console.WriteLine("   (100% In-Browser UI \u00B7 1200 DPI \u00B7 TIFF RAW)    ");
             Console.WriteLine("=================================================");
             Console.ResetColor();
             Console.WriteLine();
@@ -50,6 +50,7 @@ namespace PhotoVault.ScannerBridge
             Console.WriteLine("  Status   : ACTIVE & READY FOR PHOTOVAULT");
             Console.WriteLine("  Endpoint : " + url);
             Console.WriteLine("  Web UI   : https://shamsghani.github.io/photovault/");
+            Console.WriteLine("  Modes    : 200, 300, 600, 1200 DPI | JPEG & TIFF RAW");
             Console.ResetColor();
             Console.WriteLine();
             Console.WriteLine("Scans are controlled 100% inside your browser.");
@@ -204,7 +205,9 @@ namespace PhotoVault.ScannerBridge
         {
             List<string> deviceList = GetScannerList();
             StringBuilder sb = new StringBuilder();
-            sb.Append("{\"success\":true,\"version\":\"1.2\",\"status\":\"online\",");
+            sb.Append("{\"success\":true,\"version\":\"1.3\",\"status\":\"online\",");
+            sb.Append("\"formats\":[\"jpeg\",\"tiff\"],");
+            sb.Append("\"dpis\":[200,300,600,1200],");
             sb.Append("\"devices\":[");
             for (int i = 0; i < deviceList.Count; i++)
             {
@@ -271,17 +274,26 @@ namespace PhotoVault.ScannerBridge
 
             int dpi = 300;
             string colorMode = "color";
+            string format = "jpeg";
             string deviceId = "";
 
             if (!string.IsNullOrEmpty(body))
             {
                 dpi = ParseJsonInt(body, "dpi", 300);
                 colorMode = ParseJsonString(body, "colorMode", "color").ToLowerInvariant();
+                format = ParseJsonString(body, "format", "jpeg").ToLowerInvariant();
                 deviceId = ParseJsonString(body, "deviceId", "");
             }
 
+            if (dpi < 75) dpi = 75;
+            if (dpi > 4800) dpi = 4800;
+
+            bool isTiff = (format == "tiff" || format == "tif");
+            string targetMime = isTiff ? "image/tiff" : "image/jpeg";
+            string targetFmt = isTiff ? "tiff" : "jpeg";
+
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("Starting silent scan (no external apps): DPI=" + dpi + ", Mode=" + colorMode);
+            Console.WriteLine("Starting silent scan (no external apps): DPI=" + dpi + ", Mode=" + colorMode + ", Format=" + (isTiff ? "TIFF RAW (Lossless)" : "JPEG"));
             Console.ResetColor();
 
             // WIA Intent: 1 = Color, 2 = Grayscale, 4 = Text/BW
@@ -289,7 +301,8 @@ namespace PhotoVault.ScannerBridge
             if (colorMode == "grayscale" || colorMode == "gray") intent = 2;
             else if (colorMode == "bw" || colorMode == "text" || colorMode == "lineart") intent = 4;
 
-            string jsonResult = null;
+            bool scanSucceeded = false;
+            string errorMessage = null;
             int responseCode = 200;
 
             ExecuteInSta(() =>
@@ -319,39 +332,65 @@ namespace PhotoVault.ScannerBridge
 
                     if (targetDevice == null)
                     {
-                        jsonResult = "{\"success\":false,\"error\":\"No USB scanner connected or available\"}";
+                        errorMessage = "No USB scanner connected or available";
                         responseCode = 404;
                         return;
                     }
 
                     dynamic item = targetDevice.Items[1];
 
-                    // Configure resolution and color intent
+                    // Configure resolution and color intent directly on hardware sensor
                     SetProperty(item.Properties, 6146, intent); // WIA_IPS_CUR_INTENT
                     SetProperty(item.Properties, 6147, dpi);    // WIA_IPS_XRES
                     SetProperty(item.Properties, 6148, dpi);    // WIA_IPS_YRES
 
-                    Console.WriteLine("Triggering direct sensor transfer...");
+                    Console.WriteLine("Triggering direct optical sensor transfer (" + dpi + " DPI)...");
 
-                    // BMP format GUID is guaranteed to be supported natively by all WIA scanner drivers
-                    string bmpGuid = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}";
+                    // Standard WIA format GUIDs
+                    string tiffGuid = "{B96B3CB1-0728-11D3-9D7B-0000F81EF32E}";
+                    string bmpGuid  = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}";
+                    string jpgGuid  = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}";
                     dynamic image = null;
 
-                    try
+                    if (isTiff)
                     {
-                        // Direct silent transfer — NO DIALOG, NO EXTERNAL APP
-                        image = item.Transfer(bmpGuid);
+                        try
+                        {
+                            // Attempt native direct hardware TIFF transfer
+                            image = item.Transfer(tiffGuid);
+                        }
+                        catch (Exception exTiff)
+                        {
+                            Console.WriteLine("Native TIFF transfer notice: " + exTiff.Message + ". Transferring uncompressed BMP from sensor...");
+                            try
+                            {
+                                image = item.Transfer(bmpGuid);
+                            }
+                            catch (Exception exBmp)
+                            {
+                                Console.WriteLine("BMP transfer notice: " + exBmp.Message + ". Transferring JPEG...");
+                                image = item.Transfer(jpgGuid);
+                            }
+                        }
                     }
-                    catch (Exception exBmp)
+                    else
                     {
-                        Console.WriteLine("Direct BMP transfer note: " + exBmp.Message + ". Trying JPEG transfer...");
-                        string jpgGuid = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}";
-                        image = item.Transfer(jpgGuid);
+                        try
+                        {
+                            // Direct silent transfer BMP
+                            image = item.Transfer(bmpGuid);
+                        }
+                        catch (Exception exBmp)
+                        {
+                            Console.WriteLine("BMP transfer note: " + exBmp.Message + ". Transferring JPEG...");
+                            image = item.Transfer(jpgGuid);
+                        }
                     }
 
                     if (image == null)
                     {
-                        jsonResult = "{\"success\":false,\"error\":\"Scanner completed without returning image data\"}";
+                        errorMessage = "Scanner completed without returning image data";
+                        responseCode = 500;
                         return;
                     }
 
@@ -359,51 +398,155 @@ namespace PhotoVault.ScannerBridge
                     int origW = (int)image.Width;
                     int origH = (int)image.Height;
 
-                    // Convert to high-quality compressed JPEG in memory via System.Drawing
-                    byte[] jpegBytes;
+                    byte[] mainBytes = null;
+                    byte[] previewBytes = null;
+
                     using (var inMs = new MemoryStream(rawBytes))
-                    using (var bitmap = Image.FromStream(inMs))
-                    using (var outMs = new MemoryStream())
+                    using (var bitmap = new Bitmap(inMs))
                     {
-                        ImageCodecInfo jpgEncoder = GetEncoder(ImageFormat.Jpeg);
-                        var encoderParams = new EncoderParameters(1);
-                        encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 90L);
-                        bitmap.Save(outMs, jpgEncoder, encoderParams);
-                        jpegBytes = outMs.ToArray();
+                        bitmap.SetResolution(dpi, dpi);
+                        origW = bitmap.Width;
+                        origH = bitmap.Height;
+
+                        if (isTiff)
+                        {
+                            // 1. Lossless RAW TIFF encoding with LZW compression
+                            using (var tiffMs = new MemoryStream())
+                            {
+                                ImageCodecInfo tiffCodec = GetEncoder(ImageFormat.Tiff);
+                                if (tiffCodec != null)
+                                {
+                                    using (var encParams = new EncoderParameters(1))
+                                    {
+                                        encParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Compression, (long)EncoderValue.CompressionLZW);
+                                        bitmap.Save(tiffMs, tiffCodec, encParams);
+                                    }
+                                }
+                                else
+                                {
+                                    bitmap.Save(tiffMs, ImageFormat.Tiff);
+                                }
+                                mainBytes = tiffMs.ToArray();
+                            }
+
+                            // 2. Companion high-quality JPEG preview for instantaneous in-browser canvas rendering
+                            using (var prevMs = new MemoryStream())
+                            {
+                                ImageCodecInfo jpgEncoder = GetEncoder(ImageFormat.Jpeg);
+                                using (var encParams = new EncoderParameters(1))
+                                {
+                                    encParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 88L);
+                                    bitmap.Save(prevMs, jpgEncoder, encParams);
+                                }
+                                previewBytes = prevMs.ToArray();
+                            }
+                        }
+                        else
+                        {
+                            // High-quality JPEG
+                            using (var outMs = new MemoryStream())
+                            {
+                                ImageCodecInfo jpgEncoder = GetEncoder(ImageFormat.Jpeg);
+                                using (var encoderParams = new EncoderParameters(1))
+                                {
+                                    encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 92L);
+                                    bitmap.Save(outMs, jpgEncoder, encoderParams);
+                                }
+                                mainBytes = outMs.ToArray();
+                            }
+                            previewBytes = mainBytes;
+                        }
                     }
 
-                    string base64 = Convert.ToBase64String(jpegBytes);
-
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("Scan successful! " + origW + "x" + origH + " px (" + (jpegBytes.Length / 1024) + " KB JPEG)");
-                    Console.WriteLine("Sent directly to PhotoVault web UI.");
+                    Console.WriteLine("Scan successful! " + origW + "x" + origH + " px @ " + dpi + " DPI (" + (mainBytes.Length / 1024) + " KB " + (isTiff ? "TIFF RAW" : "JPEG") + ")");
+                    Console.WriteLine("Sent directly to PhotoVault web UI (Zero external apps).");
                     Console.ResetColor();
 
-                    jsonResult = "{\"success\":true,\"width\":" + origW + ",\"height\":" + origH +
-                                  ",\"size\":" + jpegBytes.Length + ",\"mime\":\"image/jpeg\",\"data\":\"data:image/jpeg;base64," + base64 + "\"}";
+                    SendScanResponse(res, origW, origH, dpi, targetFmt, targetMime, mainBytes, previewBytes);
+                    scanSucceeded = true;
                 }
                 catch (Exception ex)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Scan error: " + ex.Message);
                     Console.ResetColor();
-                    jsonResult = "{\"success\":false,\"error\":" + EscapeJson(ex.Message) + "}";
+                    errorMessage = ex.Message;
                     responseCode = 500;
                 }
             });
 
-            if (jsonResult == null)
+            if (!scanSucceeded)
             {
-                jsonResult = "{\"success\":false,\"error\":\"Scan operation failed to complete\"}";
-                responseCode = 500;
+                SendJson(res, "{\"success\":false,\"error\":" + EscapeJson(errorMessage ?? "Scan operation failed to complete") + "}", responseCode);
             }
+        }
 
-            SendJson(res, jsonResult, responseCode);
+        private static void SendScanResponse(HttpListenerResponse res, int origW, int origH, int dpi, string format, string mime, byte[] mainBytes, byte[] previewBytes)
+        {
+            try
+            {
+                AddCorsHeaders(res);
+                res.StatusCode = 200;
+                res.ContentType = "application/json; charset=utf-8";
+
+                using (var sw = new StreamWriter(res.OutputStream, Encoding.UTF8, 65536))
+                {
+                    sw.Write("{\"success\":true,\"width\":");
+                    sw.Write(origW);
+                    sw.Write(",\"height\":");
+                    sw.Write(origH);
+                    sw.Write(",\"dpi\":");
+                    sw.Write(dpi);
+                    sw.Write(",\"format\":");
+                    sw.Write(EscapeJson(format));
+                    sw.Write(",\"mime\":");
+                    sw.Write(EscapeJson(mime));
+                    sw.Write(",\"size\":");
+                    sw.Write(mainBytes.Length);
+
+                    if (previewBytes != null && previewBytes.Length > 0)
+                    {
+                        sw.Write(",\"preview\":\"data:image/jpeg;base64,");
+                        WriteBase64ToStream(sw, previewBytes);
+                        sw.Write("\"");
+                    }
+                    else
+                    {
+                        sw.Write(",\"preview\":null");
+                    }
+
+                    sw.Write(",\"data\":\"data:");
+                    sw.Write(mime);
+                    sw.Write(";base64,");
+                    WriteBase64ToStream(sw, mainBytes);
+                    sw.Write("\"}");
+                    sw.Flush();
+                }
+                res.OutputStream.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error sending scan response: " + ex.Message);
+            }
+        }
+
+        private static void WriteBase64ToStream(StreamWriter sw, byte[] data)
+        {
+            char[] base64Chars = new char[8192];
+            int offset = 0;
+            while (offset < data.Length)
+            {
+                int chunkLen = Math.Min(5760, data.Length - offset);
+                int charsWritten = Convert.ToBase64CharArray(data, offset, chunkLen, base64Chars, 0);
+                sw.Write(base64Chars, 0, charsWritten);
+                offset += chunkLen;
+            }
         }
 
         private static ImageCodecInfo GetEncoder(ImageFormat format)
         {
-            ImageCodecInfo[] codecs = ImageCodecInfo.GetImageDecoders();
+            ImageCodecInfo[] codecs = ImageCodecInfo.GetImageEncoders();
             foreach (ImageCodecInfo codec in codecs)
             {
                 if (codec.FormatID == format.Guid) return codec;
