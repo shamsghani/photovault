@@ -468,6 +468,21 @@
   .crop-handle.l  { left: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
   .crop-handle.r  { right: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
 
+  .scan-preview-flow-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%);
+    border: 1px solid rgba(99,102,241,0.35); border-radius: var(--radius-sm); margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .scan-flow-banner-left { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text); flex: 1; }
+  .scan-step-pill {
+    padding: 3px 9px; background: var(--accent); color: #fff; border-radius: 12px;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .scan-step-pill.success { background: #10B981; }
+  .scan-flow-banner-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .text-link-btn { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
+
   .scan-studio-stage-footer {
     padding: 6px 12px; background: var(--surface-2); border-top: 1px solid var(--border);
     display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--text-3);
@@ -1085,12 +1100,12 @@
           </div>
           <div class="scanner-form-grid" style="margin-top:12px">
             <div>
-              <label class="scanner-form-label">Resolution (DPI)</label>
+              <label class="scanner-form-label">Target Resolution</label>
               <div class="seg-toggle" style="width:100%">
                 <button class="seg-btn" id="dpi200" onclick="setScanDpi(200)">200</button>
-                <button class="seg-btn active" id="dpi300" onclick="setScanDpi(300)">300</button>
+                <button class="seg-btn" id="dpi300" onclick="setScanDpi(300)">300</button>
                 <button class="seg-btn" id="dpi600" onclick="setScanDpi(600)">600</button>
-                <button class="seg-btn" id="dpi1200" onclick="setScanDpi(1200)">1200 (Raw)</button>
+                <button class="seg-btn active" id="dpi1200" onclick="setScanDpi(1200)">1200 (Raw)</button>
               </div>
             </div>
             <div>
@@ -1102,21 +1117,31 @@
               </div>
             </div>
             <div>
-              <label class="scanner-form-label">Output Format</label>
+              <label class="scanner-form-label">Final Format</label>
               <div class="seg-toggle" style="width:100%">
-                <button class="seg-btn active" id="fmtJpeg" onclick="setScanFormat('jpeg')">JPEG</button>
-                <button class="seg-btn" id="fmtTiff" onclick="setScanFormat('tiff')">TIFF (Raw)</button>
+                <button class="seg-btn" id="fmtJpeg" onclick="setScanFormat('jpeg')">JPEG</button>
+                <button class="seg-btn active" id="fmtTiff" onclick="setScanFormat('tiff')">TIFF (Raw)</button>
               </div>
             </div>
           </div>
-          <div id="archivalNotice" style="display:none;margin-top:12px;padding:9px 13px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.28);border-radius:6px;font-size:12px;color:var(--text-1);line-height:1.45"></div>
+          <div id="archivalNotice" style="display:block;margin-top:12px;padding:9px 13px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.28);border-radius:6px;font-size:12px;color:var(--text-1);line-height:1.45"><strong>✨ 1200 DPI TIFF RAW Mode:</strong> Step 1 will run a fast 75 DPI bed preview (~2 sec) and auto-crop the photo. Step 2 will scan the cropped photo at true 1200 DPI lossless TIFF RAW.</div>
 
-          <div style="margin-top:20px;display:flex;gap:12px;align-items:center">
-            <button class="empty-cta" id="startScanBtn" onclick="triggerScan()" style="padding:11px 26px;display:inline-flex;align-items:center;gap:8px;font-size:13.5px">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
-              <span>Scan Photo Directly</span>
-            </button>
-            <span style="font-size:12px;color:var(--text-3)">Entirely inside PhotoVault &middot; No external apps will open</span>
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+              <button class="empty-cta" id="startPreviewScanBtn" onclick="triggerScan(true)" style="padding:12px 24px;display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>⚡ 1. Preview Scan &amp; Auto-Crop</span>
+              </button>
+              <div style="display:flex;flex-direction:column;gap:1px">
+                <span style="font-size:12.5px;font-weight:500;color:var(--text-1)">Fastest Overview (~2 seconds at 75 DPI)</span>
+                <span style="font-size:11px;color:var(--text-3)">Scans flatbed, auto-detects photo edges, then scans cropped area at target full resolution</span>
+              </div>
+            </div>
+            <div style="padding-left:2px">
+              <button class="text-link-btn" onclick="triggerScan(false)" style="font-size:11.5px;color:var(--text-3);text-decoration:underline;cursor:pointer">
+                or scan entire flatbed directly at <span id="directScanDpiText">1200 DPI (TIFF RAW)</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1160,6 +1185,20 @@
         <div class="scan-studio-grid">
           <!-- LEFT: WORKSPACE & CROP STAGE -->
           <div class="scan-studio-stage">
+            <div class="scan-preview-flow-banner" id="scanPreviewFlowBanner" style="display:none">
+              <div class="scan-flow-banner-left">
+                <span class="scan-step-pill" id="scanStepPill">Step 1: Preview</span>
+                <span id="scanFlowBannerMsg">Photo auto-detected! Verify crop handles, then scan cropped area at full resolution:</span>
+              </div>
+              <div class="scan-flow-banner-right">
+                <button class="empty-cta" id="scanCroppedBtn" onclick="triggerCroppedScan()" style="padding:7px 15px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
+                  <span id="scanCroppedBtnLabel">🎯 2. Scan Cropped Area (1200 DPI TIFF RAW)</span>
+                </button>
+                <button class="jb-btn" id="rePreviewBtn" onclick="triggerScan(true)" title="Re-scan flatbed preview" style="padding:6px 12px;font-size:12px">🔄 Re-Preview</button>
+              </div>
+            </div>
+
             <div class="scan-studio-toolbar">
               <div class="scan-tool-group">
                 <button class="seg-btn" id="cropAspectAuto" onclick="autoCropPhoto()" title="Auto-detect photo boundaries on flatbed">&#x2728; Auto-Crop</button>
@@ -1253,13 +1292,25 @@
 
             <!-- Actions -->
             <div class="scan-sidebar-actions">
-              <button class="empty-cta" id="saveScanToVaultBtn" onclick="saveScannedPhotoToVault()" style="width:100%;padding:11px 16px;font-size:13px;justify-content:center">
-                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                <span>Save Cropped Photo to Vault</span>
-              </button>
-              <div style="display:flex;gap:8px">
-                <button class="jb-btn" onclick="downloadScannedPhoto()" style="flex:1">Download JPEG</button>
-                <button class="jb-btn" onclick="resetStudioToScan()" style="flex:1">Scan Another</button>
+              <!-- Preview Mode Actions -->
+              <div id="previewActionsBox" style="display:none;flex-direction:column;gap:8px">
+                <button class="empty-cta" id="scanCroppedSidebarBtn" onclick="triggerCroppedScan()" style="width:100%;padding:12px 16px;font-size:13.5px;font-weight:600;justify-content:center">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7V4h16v3M4 17v3h16v-3M3 12h18M5 12h.01M8 12h8"/></svg>
+                  <span id="scanCroppedSidebarLabel">🎯 2. Scan Cropped Area</span>
+                </button>
+                <button class="jb-btn" onclick="triggerScan(true)" style="width:100%;padding:8px">🔄 Re-scan Preview</button>
+              </div>
+
+              <!-- Final High-Res Actions -->
+              <div id="finalActionsBox" style="display:flex;flex-direction:column;gap:8px">
+                <button class="empty-cta" id="saveScanToVaultBtn" onclick="saveScannedPhotoToVault()" style="width:100%;padding:11px 16px;font-size:13px;justify-content:center">
+                  <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span id="saveScanBtnText">Save to Vault</span>
+                </button>
+                <div style="display:flex;gap:8px">
+                  <button class="jb-btn" id="downloadScannedBtn" onclick="downloadScannedPhoto()" style="flex:1">Download Master</button>
+                  <button class="jb-btn" onclick="resetStudioToScan()" style="flex:1">Scan Another</button>
+                </div>
               </div>
             </div>
           </div>
@@ -3652,19 +3703,21 @@ const SCANNER_BRIDGE_URL = 'http://127.0.0.1:18205';
 let scannerBridgeOnline = false;
 let scannerDevices = [];
 let selectedScannerId = '';
-let scanDpi = 300;
+let scanDpi = 1200;
 let scanColorMode = 'color';
-let scanFormat = 'jpeg';
+let scanFormat = 'tiff';
 let scanCheckTimer = null;
 let cameraStream = null;
 let connectedHidDevice = null;
 
 // Scan Studio State
+let studioPhase = 'preview'; // 'preview' or 'final'
+let previewBedScanData = null;
 let studioRawImage = null;
 let studioRawDataUrl = null;
 let studioPreviewDataUrl = null;
-let studioScanFormat = 'jpeg';
-let studioScanDpi = 300;
+let studioScanFormat = 'tiff';
+let studioScanDpi = 1200;
 let studioRawWidth = 0;
 let studioRawHeight = 0;
 let studioRotation = 0;
@@ -3787,6 +3840,7 @@ function setScanDpi(dpi) {
   } else {
     updateArchivalNotice();
   }
+  updateDirectScanLabel();
 }
 
 function setScanMode(mode) {
@@ -3803,6 +3857,14 @@ function setScanFormat(fmt) {
   if (jBtn) jBtn.classList.toggle('active', fmt === 'jpeg');
   if (tBtn) tBtn.classList.toggle('active', fmt === 'tiff');
   updateArchivalNotice();
+  updateDirectScanLabel();
+}
+
+function updateDirectScanLabel() {
+  const lbl = document.getElementById('directScanDpiText');
+  if (lbl) {
+    lbl.textContent = `${scanDpi} DPI (${scanFormat.toUpperCase()}${scanFormat === 'tiff' ? ' RAW' : ''})`;
+  }
 }
 
 function updateArchivalNotice() {
@@ -3811,7 +3873,7 @@ function updateArchivalNotice() {
   if (scanDpi === 1200 || scanFormat === 'tiff') {
     notice.style.display = 'block';
     if (scanDpi === 1200 && scanFormat === 'tiff') {
-      notice.innerHTML = '<strong>✨ 1200 DPI TIFF RAW Mode:</strong> Maximum optical sensor resolution with lossless raw acquisition. Scans will be preserved as archival master .tif files.';
+      notice.innerHTML = '<strong>✨ 1200 DPI TIFF RAW Mode:</strong> Step 1 will run a fast 75 DPI bed preview (~2 sec) and auto-crop the photo. Step 2 will scan the cropped photo at true 1200 DPI lossless TIFF RAW.';
     } else if (scanFormat === 'tiff') {
       notice.innerHTML = `<strong>✨ ${scanDpi} DPI TIFF RAW Mode:</strong> Lossless uncompressed raw scan saved as archival master .tif.`;
     } else {
@@ -3822,23 +3884,34 @@ function updateArchivalNotice() {
   }
 }
 
-async function triggerScan() {
-  const scanBtn = document.getElementById('startScanBtn');
+async function triggerScan(isPreview = true) {
   const onlineBox = document.getElementById('bridgeOnlineBox');
   const activeBox = document.getElementById('scanActiveBox');
   const statusText = document.getElementById('scanActiveStatusText');
   const select = document.getElementById('scannerSelect');
   const deviceId = select ? select.value : '';
 
+  // Switch to active scan animation panel
+  document.getElementById('scanStudioWrap').style.display = 'none';
+  document.getElementById('paneBridge').style.display = 'block';
   onlineBox.style.display = 'none';
   activeBox.style.display = 'flex';
-  statusText.textContent = `Scanning optical sensor at ${scanDpi} DPI (${scanColorMode.toUpperCase()}, ${scanFormat.toUpperCase()}${scanFormat === 'tiff' ? ' RAW' : ''}). Zero external windows.`;
+
+  const reqDpi = isPreview ? 75 : scanDpi;
+  const reqFormat = isPreview ? 'jpeg' : scanFormat;
+
+  if (isPreview) {
+    statusText.textContent = `⚡ Capturing fast 75 DPI flatbed preview (~2 seconds)... Zero external windows.`;
+  } else {
+    statusText.textContent = `Scanning optical sensor at ${scanDpi} DPI (${scanColorMode.toUpperCase()}, ${scanFormat.toUpperCase()}${scanFormat === 'tiff' ? ' RAW' : ''}). Zero external windows.`;
+  }
 
   try {
     const payload = {
-      dpi: scanDpi,
+      dpi: reqDpi,
       colorMode: scanColorMode,
-      format: scanFormat,
+      format: reqFormat,
+      isPreview: isPreview,
       deviceId
     };
 
@@ -3853,8 +3926,14 @@ async function triggerScan() {
     const data = await res.json();
     if (data.success && (data.data || data.preview)) {
       activeBox.style.display = 'none';
-      enterScanStudio(data);
-      showToast(`Scan acquired! (${data.width}\u00D7${data.height} @ ${data.dpi || scanDpi} DPI ${data.format ? data.format.toUpperCase() : scanFormat.toUpperCase()})`);
+      studioPhase = isPreview ? 'preview' : 'final';
+      if (isPreview) previewBedScanData = data;
+      enterScanStudio(data, 0, 0, isPreview);
+      if (isPreview) {
+        showToast('Preview captured! Auto-detecting photo boundaries...');
+      } else {
+        showToast(`Scan acquired! (${data.width}\u00D7${data.height} @ ${data.dpi || scanDpi} DPI)`);
+      }
     } else {
       activeBox.style.display = 'none';
       onlineBox.style.display = 'block';
@@ -3867,7 +3946,67 @@ async function triggerScan() {
   }
 }
 
-function enterScanStudio(dataOrUrl, width, height) {
+async function triggerCroppedScan() {
+  const activeBox = document.getElementById('scanActiveBox');
+  const statusText = document.getElementById('scanActiveStatusText');
+  const select = document.getElementById('scannerSelect');
+  const deviceId = select ? select.value : '';
+
+  // Switch to active scan animation panel
+  document.getElementById('scanStudioWrap').style.display = 'none';
+  document.getElementById('paneBridge').style.display = 'block';
+  document.getElementById('bridgeOnlineBox').style.display = 'none';
+  activeBox.style.display = 'flex';
+
+  const inW = (studioCrop.w * 8.5).toFixed(1);
+  const inH = (studioCrop.h * 11.7).toFixed(1);
+  statusText.textContent = `🎯 Scanning optical sensor carriage over cropped photo (${inW}" \u00D7 ${inH}") at ${scanDpi} DPI (${scanFormat.toUpperCase()}${scanFormat === 'tiff' ? ' RAW' : ''}). Zero external windows.`;
+
+  try {
+    const payload = {
+      dpi: scanDpi,
+      colorMode: scanColorMode,
+      format: scanFormat,
+      crop: {
+        x: studioCrop.x,
+        y: studioCrop.y,
+        w: studioCrop.w,
+        h: studioCrop.h
+      },
+      deviceId
+    };
+
+    const res = await fetch(`${SCANNER_BRIDGE_URL}/scan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (data.success && (data.data || data.preview)) {
+      activeBox.style.display = 'none';
+      document.getElementById('paneBridge').style.display = 'none';
+      document.getElementById('scanStudioWrap').style.display = 'flex';
+      studioPhase = 'final';
+      enterScanStudio(data, 0, 0, false);
+      showToast(`🎯 High-resolution cropped scan complete! (${data.width}\u00D7${data.height} @ ${scanDpi} DPI ${scanFormat.toUpperCase()})`);
+    } else {
+      activeBox.style.display = 'none';
+      document.getElementById('paneBridge').style.display = 'none';
+      document.getElementById('scanStudioWrap').style.display = 'flex';
+      showToast('Cropped scan error: ' + (data.error || 'No image data returned'));
+    }
+  } catch (err) {
+    activeBox.style.display = 'none';
+    document.getElementById('paneBridge').style.display = 'none';
+    document.getElementById('scanStudioWrap').style.display = 'flex';
+    showToast('Failed to communicate with scanner bridge: ' + err.message);
+  }
+}
+
+function enterScanStudio(dataOrUrl, width, height, isPreview) {
   let dataUrl, previewUrl, fmt, dpiVal;
   if (typeof dataOrUrl === 'object' && dataOrUrl !== null) {
     dataUrl = dataOrUrl.data;
@@ -3875,18 +4014,23 @@ function enterScanStudio(dataOrUrl, width, height) {
     width = dataOrUrl.width || width || 0;
     height = dataOrUrl.height || height || 0;
     fmt = dataOrUrl.format || scanFormat;
-    dpiVal = dataOrUrl.dpi || scanDpi;
+    dpiVal = dataOrUrl.dpi || (isPreview ? 75 : scanDpi);
+    if (typeof isPreview === 'undefined') {
+      isPreview = (dataOrUrl.isPreview === true || dpiVal <= 100);
+    }
   } else {
     dataUrl = dataOrUrl;
     previewUrl = dataOrUrl;
     fmt = scanFormat;
-    dpiVal = scanDpi;
+    dpiVal = isPreview ? 75 : scanDpi;
+    if (typeof isPreview === 'undefined') isPreview = false;
   }
 
+  studioPhase = isPreview ? 'preview' : 'final';
   studioRawDataUrl = dataUrl;
   studioPreviewDataUrl = previewUrl;
   studioScanFormat = fmt || 'jpeg';
-  studioScanDpi = dpiVal || 300;
+  studioScanDpi = dpiVal || (isPreview ? 75 : 300);
   studioRawWidth = width || 0;
   studioRawHeight = height || 0;
   studioRotation = 0;
@@ -3895,21 +4039,52 @@ function enterScanStudio(dataOrUrl, width, height) {
   studioBrightness = 0;
   studioContrast = 0;
   studioCropAspect = 'free';
-  studioCrop = { x: 0.05, y: 0.05, w: 0.90, h: 0.90 };
   studioTags = [];
 
   const card = document.getElementById('scannerCard');
   card.classList.add('studio-mode');
-  document.getElementById('scannerModalTitle').textContent = 'Photo Scan Studio';
+  document.getElementById('scannerModalTitle').textContent = isPreview ? 'Photo Scan Studio \u00B7 Step 1: Preview & Auto-Crop' : 'Photo Scan Studio \u00B7 Step 2: High-Res Master';
   document.getElementById('scannerTabs').style.display = 'none';
   document.getElementById('paneBridge').style.display = 'none';
   document.getElementById('scanStudioWrap').style.display = 'flex';
+
+  // Configure 2-step banner and action buttons
+  const flowBanner = document.getElementById('scanPreviewFlowBanner');
+  const stepPill = document.getElementById('scanStepPill');
+  const bannerMsg = document.getElementById('scanFlowBannerMsg');
+  const scanCroppedBtn = document.getElementById('scanCroppedBtn');
+  const scanCroppedBtnLabel = document.getElementById('scanCroppedBtnLabel');
+  const previewActionsBox = document.getElementById('previewActionsBox');
+  const finalActionsBox = document.getElementById('finalActionsBox');
+  const scanCroppedSidebarLabel = document.getElementById('scanCroppedSidebarLabel');
+
+  if (flowBanner) {
+    flowBanner.style.display = 'flex';
+    if (isPreview) {
+      if (stepPill) { stepPill.textContent = 'Step 1: Preview'; stepPill.className = 'scan-step-pill'; }
+      if (bannerMsg) bannerMsg.textContent = 'Photo auto-detected on flatbed! Verify crop handles, then scan cropped area at full resolution:';
+      if (scanCroppedBtn) scanCroppedBtn.style.display = 'inline-flex';
+      const targetLabel = `\uD83C\uDFAF 2. Scan Cropped Area (${scanDpi} DPI ${scanFormat.toUpperCase()}${scanFormat === 'tiff' ? ' RAW' : ''})`;
+      if (scanCroppedBtnLabel) scanCroppedBtnLabel.textContent = targetLabel;
+      if (scanCroppedSidebarLabel) scanCroppedSidebarLabel.textContent = targetLabel;
+      if (previewActionsBox) previewActionsBox.style.display = 'flex';
+      if (finalActionsBox) finalActionsBox.style.display = 'none';
+      studioCrop = { x: 0.05, y: 0.05, w: 0.90, h: 0.90 };
+    } else {
+      if (stepPill) { stepPill.textContent = 'Step 2: Complete'; stepPill.className = 'scan-step-pill success'; }
+      if (bannerMsg) bannerMsg.textContent = `\u2705 High-Resolution ${studioScanDpi} DPI ${studioScanFormat.toUpperCase()}${studioScanFormat === 'tiff' ? ' RAW' : ''} master acquired! Ready to save to vault or download.`;
+      if (scanCroppedBtn) scanCroppedBtn.style.display = 'none';
+      if (previewActionsBox) previewActionsBox.style.display = 'none';
+      if (finalActionsBox) finalActionsBox.style.display = 'flex';
+      studioCrop = { x: 0, y: 0, w: 1, h: 1 };
+    }
+  }
 
   const hwMeta = document.getElementById('scanHardwareMeta');
   const selDevice = scannerDevices.find(d => d.id === selectedScannerId);
   const devName = selDevice ? selDevice.name : 'Flatbed Scanner';
   if (hwMeta) {
-    hwMeta.textContent = `${devName} \u00B7 ${studioScanDpi} DPI \u00B7 ${scanColorMode.toUpperCase()} \u00B7 ${studioScanFormat.toUpperCase()}${studioScanFormat === 'tiff' ? ' RAW' : ''}`;
+    hwMeta.textContent = `${devName} \u00B7 ${studioScanDpi} DPI \u00B7 ${scanColorMode.toUpperCase()} \u00B7 ${studioScanFormat.toUpperCase()}${studioScanFormat === 'tiff' ? ' RAW' : ''}${isPreview ? ' (PREVIEW)' : ' (MASTER)'}`;
   }
 
   populateScanFolderSelect();
@@ -3935,7 +4110,11 @@ function enterScanStudio(dataOrUrl, width, height) {
       initCropEvents();
       cropEventsInitialized = true;
     }
-    autoCropPhoto();
+    if (isPreview) {
+      autoCropPhoto();
+    } else {
+      updateCropBoxDom();
+    }
   };
   studioRawImage.src = studioPreviewDataUrl;
 }
@@ -4361,7 +4540,10 @@ function resetStudioToScan() {
   document.getElementById('scanActiveBox').style.display = 'none';
   document.getElementById('scanStudioWrap').style.display = 'none';
   document.getElementById('scannerModalTitle').textContent = 'Scan Photos';
+  const flowBanner = document.getElementById('scanPreviewFlowBanner');
+  if (flowBanner) flowBanner.style.display = 'none';
   studioRawImage = null;
+  studioPhase = 'preview';
 }
 
 function downloadDataUrl(dataUrl, filename) {

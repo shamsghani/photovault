@@ -1,12 +1,12 @@
-# PhotoVault Scanner Bridge (PowerShell Edition v1.3)
+# PhotoVault Scanner Bridge (PowerShell Edition v1.4)
 # Provides local WIA scanner access to PhotoVault on GitHub Pages via localhost HTTP/CORS
-# Supports 200, 300, 600, 1200 DPI and Lossless TIFF RAW & JPEG output
+# Supports 2-Step Workflow: Fast 75 DPI Preview -> Auto-Crop -> Hardware Cropped 1200 DPI TIFF RAW
 $Port = 18205
 $Url = "http://127.0.0.1:$Port/"
 
 Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "  PhotoVault Scanner Bridge v1.3 (PowerShell)   " -ForegroundColor Cyan
-Write-Host "    (1200 DPI & Lossless TIFF RAW Supported)    " -ForegroundColor Cyan
+Write-Host "  PhotoVault Scanner Bridge v1.4 (PowerShell)   " -ForegroundColor Cyan
+Write-Host "  (Fast Preview \u00B7 Auto-Crop \u00B7 1200 DPI TIFF RAW) " -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -25,7 +25,8 @@ try {
 Write-Host "  Status   : ACTIVE & LISTENING" -ForegroundColor Green
 Write-Host "  Endpoint : $Url" -ForegroundColor Green
 Write-Host "  Ready for: https://shamsghani.github.io/photovault/" -ForegroundColor Green
-Write-Host "  Modes    : 200, 300, 600, 1200 DPI | JPEG & TIFF RAW" -ForegroundColor Green
+Write-Host "  Workflow : 1. Preview (75 DPI) -> 2. Cropped High-Res Scan" -ForegroundColor Green
+Write-Host "  Modes    : 75, 100, 200, 300, 600, 1200 DPI | JPEG & TIFF RAW" -ForegroundColor Green
 Write-Host ""
 Write-Host "Keep this window open while scanning photos into PhotoVault."
 Write-Host "Press Ctrl+C to terminate."
@@ -83,10 +84,11 @@ while ($listener.IsListening) {
             $devices = Get-Scanners
             $json = @{
                 success = $true
-                version = "1.3"
+                version = "1.4"
                 status = "online"
                 formats = @("jpeg", "tiff")
-                dpis = @(200, 300, 600, 1200)
+                dpis = @(75, 100, 200, 300, 600, 1200)
+                supportsHardwareCrop = $true
                 devices = $devices
             } | ConvertTo-Json -Compress
             Send-JsonResponse $response $json
@@ -108,6 +110,9 @@ while ($listener.IsListening) {
             $colorMode = "color"
             $format = "jpeg"
             $deviceId = ""
+            $cropX = -1; $cropY = -1; $cropW = -1; $cropH = -1
+            $hasCrop = $false
+            $isPreview = $false
 
             if ($body) {
                 try {
@@ -116,6 +121,14 @@ while ($listener.IsListening) {
                     if ($parsed.colorMode) { $colorMode = [string]$parsed.colorMode }
                     if ($parsed.format) { $format = [string]$parsed.format.ToLower() }
                     if ($parsed.deviceId) { $deviceId = [string]$parsed.deviceId }
+                    if ($parsed.isPreview) { $isPreview = [bool]$parsed.isPreview }
+                    if ($parsed.crop) {
+                        $cropX = [double]$parsed.crop.x
+                        $cropY = [double]$parsed.crop.y
+                        $cropW = [double]$parsed.crop.w
+                        $cropH = [double]$parsed.crop.h
+                        if ($cropX -ge 0 -and $cropY -ge 0 -and $cropW -gt 0 -and $cropH -gt 0) { $hasCrop = $true }
+                    }
                 } catch {}
             }
 
@@ -126,7 +139,13 @@ while ($listener.IsListening) {
             $targetMime = if ($isTiff) { "image/tiff" } else { "image/jpeg" }
             $targetFmt = if ($isTiff) { "tiff" } else { "jpeg" }
 
-            Write-Host "Starting silent scan: DPI=$dpi, Mode=$colorMode, Format=$(if ($isTiff) { 'TIFF RAW' } else { 'JPEG' })" -ForegroundColor Cyan
+            if ($isPreview) {
+                Write-Host "Starting FAST PREVIEW scan ($dpi DPI, full bed)..." -ForegroundColor Cyan
+            } elseif ($hasCrop) {
+                Write-Host "Starting CROPPED scan ($dpi DPI, region: $cropX,$cropY $cropW x $cropH)..." -ForegroundColor Cyan
+            } else {
+                Write-Host "Starting scan: DPI=$dpi, Mode=$colorMode, Format=$(if ($isTiff) { 'TIFF RAW' } else { 'JPEG' })" -ForegroundColor Cyan
+            }
 
             $intent = 1 # Color
             if ($colorMode -in @("grayscale", "gray")) { $intent = 2 }
@@ -163,6 +182,40 @@ while ($listener.IsListening) {
                     if ($p.PropertyID -eq 6148) { try { $p.Value = $dpi } catch {} }
                 }
 
+                $maxW = $item.Properties.Item('6151').SubTypeMax
+                if (!$maxW) { $maxW = $item.Properties.Item('6151').Value }
+                $maxH = $item.Properties.Item('6152').SubTypeMax
+                if (!$maxH) { $maxH = $item.Properties.Item('6152').Value }
+
+                $targetW = $maxW; $targetH = $maxH
+
+                if ($hasCrop -and ($cropW -lt 0.995 -or $cropH -lt 0.995 -or $cropX -gt 0.005 -or $cropY -gt 0.005)) {
+                    $tx = [int][math]::Max(0, [math]::Min($maxW - 20, [math]::Round($cropX * $maxW)))
+                    $ty = [int][math]::Max(0, [math]::Min($maxH - 20, [math]::Round($cropY * $maxH)))
+                    $tw = [int][math]::Max(50, [math]::Min($maxW - $tx, [math]::Round($cropW * $maxW)))
+                    $th = [int][math]::Max(50, [math]::Min($maxH - $ty, [math]::Round($cropH * $maxH)))
+                    $targetW = $tw; $targetH = $th
+
+                    Write-Host "Setting hardware window: X=$tx, Y=$ty, W=$tw, H=$th ($tw x $th px @ $dpi DPI)" -ForegroundColor Magenta
+                    try {
+                        $item.Properties.Item('6149').Value = 0
+                        $item.Properties.Item('6150').Value = 0
+                        $item.Properties.Item('6151').Value = $tw
+                        $item.Properties.Item('6152').Value = $th
+                        $item.Properties.Item('6149').Value = $tx
+                        $item.Properties.Item('6150').Value = $ty
+                        $item.Properties.Item('6151').Value = $tw
+                        $item.Properties.Item('6152').Value = $th
+                    } catch {}
+                } else {
+                    try {
+                        $item.Properties.Item('6149').Value = 0
+                        $item.Properties.Item('6150').Value = 0
+                        $item.Properties.Item('6151').Value = $maxW
+                        $item.Properties.Item('6152').Value = $maxH
+                    } catch {}
+                }
+
                 Write-Host "Scanning from sensor directly ($dpi DPI)..." -ForegroundColor Cyan
                 $image = $null
                 if ($isTiff) {
@@ -191,9 +244,23 @@ while ($listener.IsListening) {
                 $rawBytes = $image.FileData.BinaryData
                 [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing") | Out-Null
                 $msIn = New-Object System.IO.MemoryStream(,$rawBytes)
-                $bitmap = [System.Drawing.Image]::FromStream($msIn)
-                $bitmap.SetResolution($dpi, $dpi)
+                $origBmp = [System.Drawing.Image]::FromStream($msIn)
 
+                $bitmap = $origBmp
+                $clonedBmp = $null
+
+                # Software crop fallback if scanner driver returned full bed
+                if ($hasCrop -and $origBmp.Width -gt ($targetW * 1.25)) {
+                    $subX = [int][math]::Max(0, [math]::Min($origBmp.Width - 10, [math]::Round($cropX * $origBmp.Width)))
+                    $subY = [int][math]::Max(0, [math]::Min($origBmp.Height - 10, [math]::Round($cropY * $origBmp.Height)))
+                    $subW = [int][math]::Max(20, [math]::Min($origBmp.Width - $subX, [math]::Round($cropW * $origBmp.Width)))
+                    $subH = [int][math]::Max(20, [math]::Min($origBmp.Height - $subY, [math]::Round($cropH * $origBmp.Height)))
+                    $cropRect = New-Object System.Drawing.Rectangle($subX, $subY, $subW, $subH)
+                    $clonedBmp = $origBmp.Clone($cropRect, $origBmp.PixelFormat)
+                    $bitmap = $clonedBmp
+                }
+
+                $bitmap.SetResolution($dpi, $dpi)
                 $w = $bitmap.Width
                 $h = $bitmap.Height
 
@@ -201,13 +268,11 @@ while ($listener.IsListening) {
                 $previewBytes = $null
 
                 if ($isTiff) {
-                    # Encode lossless TIFF
                     $msTiff = New-Object System.IO.MemoryStream
                     $bitmap.Save($msTiff, [System.Drawing.Imaging.ImageFormat]::Tiff)
                     $mainBytes = $msTiff.ToArray()
                     $msTiff.Dispose()
 
-                    # Companion preview JPEG for instantaneous browser canvas
                     $msPrev = New-Object System.IO.MemoryStream
                     $bitmap.Save($msPrev, [System.Drawing.Imaging.ImageFormat]::Jpeg)
                     $previewBytes = $msPrev.ToArray()
@@ -220,7 +285,8 @@ while ($listener.IsListening) {
                     $msOut.Dispose()
                 }
 
-                $bitmap.Dispose()
+                if ($clonedBmp) { $clonedBmp.Dispose() }
+                $origBmp.Dispose()
                 $msIn.Dispose()
 
                 $mainBase64 = [Convert]::ToBase64String($mainBytes)
@@ -235,6 +301,8 @@ while ($listener.IsListening) {
                     dpi = $dpi
                     format = $targetFmt
                     mime = $targetMime
+                    isPreview = $isPreview
+                    isCropped = $hasCrop
                     size = $mainBytes.Length
                     preview = if ($prevBase64) { "data:image/jpeg;base64,$prevBase64" } else { $null }
                     data = "data:${targetMime};base64,$mainBase64"

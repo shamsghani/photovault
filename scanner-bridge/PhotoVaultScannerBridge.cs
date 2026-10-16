@@ -17,11 +17,11 @@ namespace PhotoVault.ScannerBridge
 
         static void Main(string[] args)
         {
-            Console.Title = "PhotoVault Scanner Bridge (1200 DPI & TIFF RAW Supported)";
+            Console.Title = "PhotoVault Scanner Bridge (2-Step Preview & Cropped 1200 DPI TIFF RAW)";
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("=================================================");
-            Console.WriteLine("      PhotoVault Direct Scanner Bridge v1.3      ");
-            Console.WriteLine("   (100% In-Browser UI \u00B7 1200 DPI \u00B7 TIFF RAW)    ");
+            Console.WriteLine("      PhotoVault Direct Scanner Bridge v1.4      ");
+            Console.WriteLine("   (Fast Preview \u00B7 Auto-Crop \u00B7 1200 DPI TIFF RAW)   ");
             Console.WriteLine("=================================================");
             Console.ResetColor();
             Console.WriteLine();
@@ -50,7 +50,8 @@ namespace PhotoVault.ScannerBridge
             Console.WriteLine("  Status   : ACTIVE & READY FOR PHOTOVAULT");
             Console.WriteLine("  Endpoint : " + url);
             Console.WriteLine("  Web UI   : https://shamsghani.github.io/photovault/");
-            Console.WriteLine("  Modes    : 200, 300, 600, 1200 DPI | JPEG & TIFF RAW");
+            Console.WriteLine("  Workflow : 1. Preview (75 DPI) -> 2. Cropped Full-Res Scan");
+            Console.WriteLine("  Modes    : 75, 100, 200, 300, 600, 1200 DPI | JPEG & TIFF RAW");
             Console.ResetColor();
             Console.WriteLine();
             Console.WriteLine("Scans are controlled 100% inside your browser.");
@@ -205,9 +206,10 @@ namespace PhotoVault.ScannerBridge
         {
             List<string> deviceList = GetScannerList();
             StringBuilder sb = new StringBuilder();
-            sb.Append("{\"success\":true,\"version\":\"1.3\",\"status\":\"online\",");
+            sb.Append("{\"success\":true,\"version\":\"1.4\",\"status\":\"online\",");
             sb.Append("\"formats\":[\"jpeg\",\"tiff\"],");
-            sb.Append("\"dpis\":[200,300,600,1200],");
+            sb.Append("\"dpis\":[75,100,200,300,600,1200],");
+            sb.Append("\"supportsHardwareCrop\":true,");
             sb.Append("\"devices\":[");
             for (int i = 0; i < deviceList.Count; i++)
             {
@@ -276,6 +278,10 @@ namespace PhotoVault.ScannerBridge
             string colorMode = "color";
             string format = "jpeg";
             string deviceId = "";
+            bool isPreview = false;
+
+            double cropX = -1, cropY = -1, cropW = -1, cropH = -1;
+            bool hasCrop = false;
 
             if (!string.IsNullOrEmpty(body))
             {
@@ -283,6 +289,9 @@ namespace PhotoVault.ScannerBridge
                 colorMode = ParseJsonString(body, "colorMode", "color").ToLowerInvariant();
                 format = ParseJsonString(body, "format", "jpeg").ToLowerInvariant();
                 deviceId = ParseJsonString(body, "deviceId", "");
+                isPreview = body.IndexOf("\"isPreview\":true", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                hasCrop = TryGetCrop(body, out cropX, out cropY, out cropW, out cropH);
             }
 
             if (dpi < 75) dpi = 75;
@@ -293,7 +302,20 @@ namespace PhotoVault.ScannerBridge
             string targetFmt = isTiff ? "tiff" : "jpeg";
 
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("Starting silent scan (no external apps): DPI=" + dpi + ", Mode=" + colorMode + ", Format=" + (isTiff ? "TIFF RAW (Lossless)" : "JPEG"));
+            if (isPreview)
+            {
+                Console.WriteLine(string.Format("Starting FAST PREVIEW scan ({0} DPI, full flatbed)...", dpi));
+            }
+            else if (hasCrop)
+            {
+                Console.WriteLine(string.Format("Starting CROPPED HIGH-RES scan: DPI={0}, Mode={1}, Format={2} (Region: {3:P0},{4:P0} to {5:P0},{6:P0})",
+                    dpi, colorMode, (isTiff ? "TIFF RAW" : "JPEG"), cropX, cropY, cropX + cropW, cropY + cropH));
+            }
+            else
+            {
+                Console.WriteLine(string.Format("Starting silent scan: DPI={0}, Mode={1}, Format={2}",
+                    dpi, colorMode, (isTiff ? "TIFF RAW" : "JPEG")));
+            }
             Console.ResetColor();
 
             // WIA Intent: 1 = Color, 2 = Grayscale, 4 = Text/BW
@@ -339,12 +361,59 @@ namespace PhotoVault.ScannerBridge
 
                     dynamic item = targetDevice.Items[1];
 
-                    // Configure resolution and color intent directly on hardware sensor
+                    // 1. Configure resolution and color intent directly on hardware sensor
                     SetProperty(item.Properties, 6146, intent); // WIA_IPS_CUR_INTENT
                     SetProperty(item.Properties, 6147, dpi);    // WIA_IPS_XRES
                     SetProperty(item.Properties, 6148, dpi);    // WIA_IPS_YRES
 
-                    Console.WriteLine("Triggering direct optical sensor transfer (" + dpi + " DPI)...");
+                    // Read hardware bounds at target resolution
+                    int maxBedW = GetPropertyMax(item.Properties, 6151, (int)(dpi * 8.5));
+                    int maxBedH = GetPropertyMax(item.Properties, 6152, (int)(dpi * 11.69));
+
+                    int targetX = 0, targetY = 0, targetW = maxBedW, targetH = maxBedH;
+
+                    // 2. Configure Hardware Crop Window if requested
+                    if (hasCrop && (cropW < 0.995 || cropH < 0.995 || cropX > 0.005 || cropY > 0.005))
+                    {
+                        targetX = (int)Math.Max(0, Math.Min(maxBedW - 20, Math.Round(cropX * maxBedW)));
+                        targetY = (int)Math.Max(0, Math.Min(maxBedH - 20, Math.Round(cropY * maxBedH)));
+                        targetW = (int)Math.Max(50, Math.Min(maxBedW - targetX, Math.Round(cropW * maxBedW)));
+                        targetH = (int)Math.Max(50, Math.Min(maxBedH - targetY, Math.Round(cropH * maxBedH)));
+
+                        Console.ForegroundColor = ConsoleColor.Magenta;
+                        Console.WriteLine(string.Format("Hardware Crop Window: X={0}, Y={1}, W={2}, H={3} ({4}x{5} px @ {6} DPI)", targetX, targetY, targetW, targetH, targetW, targetH, dpi));
+                        Console.ResetColor();
+
+                        try
+                        {
+                            // Reset/shrink extents first so XPOS/YPOS do not exceed max extent
+                            SetProperty(item.Properties, 6149, 0);
+                            SetProperty(item.Properties, 6150, 0);
+                            SetProperty(item.Properties, 6151, targetW);
+                            SetProperty(item.Properties, 6152, targetH);
+                            SetProperty(item.Properties, 6149, targetX);
+                            SetProperty(item.Properties, 6150, targetY);
+                            SetProperty(item.Properties, 6151, targetW);
+                            SetProperty(item.Properties, 6152, targetH);
+                        }
+                        catch (Exception exRegion)
+                        {
+                            Console.WriteLine("Hardware windowing note: " + exRegion.Message + ". Software crop fallback active.");
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            SetProperty(item.Properties, 6149, 0);
+                            SetProperty(item.Properties, 6150, 0);
+                            SetProperty(item.Properties, 6151, maxBedW);
+                            SetProperty(item.Properties, 6152, maxBedH);
+                        }
+                        catch { }
+                    }
+
+                    Console.WriteLine(string.Format("Acquiring sensor scan ({0} DPI)...", dpi));
 
                     // Standard WIA format GUIDs
                     string tiffGuid = "{B96B3CB1-0728-11D3-9D7B-0000F81EF32E}";
@@ -356,19 +425,18 @@ namespace PhotoVault.ScannerBridge
                     {
                         try
                         {
-                            // Attempt native direct hardware TIFF transfer
                             image = item.Transfer(tiffGuid);
                         }
                         catch (Exception exTiff)
                         {
-                            Console.WriteLine("Native TIFF transfer notice: " + exTiff.Message + ". Transferring uncompressed BMP from sensor...");
+                            Console.WriteLine("Direct TIFF driver note: " + exTiff.Message + ". Transferring uncompressed sensor BMP...");
                             try
                             {
                                 image = item.Transfer(bmpGuid);
                             }
                             catch (Exception exBmp)
                             {
-                                Console.WriteLine("BMP transfer notice: " + exBmp.Message + ". Transferring JPEG...");
+                                Console.WriteLine("BMP transfer note: " + exBmp.Message + ". Transferring JPEG...");
                                 image = item.Transfer(jpgGuid);
                             }
                         }
@@ -377,7 +445,6 @@ namespace PhotoVault.ScannerBridge
                     {
                         try
                         {
-                            // Direct silent transfer BMP
                             image = item.Transfer(bmpGuid);
                         }
                         catch (Exception exBmp)
@@ -402,11 +469,28 @@ namespace PhotoVault.ScannerBridge
                     byte[] previewBytes = null;
 
                     using (var inMs = new MemoryStream(rawBytes))
-                    using (var bitmap = new Bitmap(inMs))
+                    using (var origBitmap = new Bitmap(inMs))
                     {
-                        bitmap.SetResolution(dpi, dpi);
-                        origW = bitmap.Width;
-                        origH = bitmap.Height;
+                        Bitmap activeBitmap = origBitmap;
+                        Bitmap croppedClone = null;
+
+                        // Software crop verification: if hardware driver ignored extent and returned full bed, crop in memory
+                        if (hasCrop && origBitmap.Width > targetW * 1.25)
+                        {
+                            Console.WriteLine("Applying software crop fallback from full bed...");
+                            int subX = (int)Math.Max(0, Math.Min(origBitmap.Width - 10, Math.Round(cropX * origBitmap.Width)));
+                            int subY = (int)Math.Max(0, Math.Min(origBitmap.Height - 10, Math.Round(cropY * origBitmap.Height)));
+                            int subW = (int)Math.Max(20, Math.Min(origBitmap.Width - subX, Math.Round(cropW * origBitmap.Width)));
+                            int subH = (int)Math.Max(20, Math.Min(origBitmap.Height - subY, Math.Round(cropH * origBitmap.Height)));
+
+                            Rectangle cropRect = new Rectangle(subX, subY, subW, subH);
+                            croppedClone = origBitmap.Clone(cropRect, origBitmap.PixelFormat);
+                            activeBitmap = croppedClone;
+                        }
+
+                        activeBitmap.SetResolution(dpi, dpi);
+                        origW = activeBitmap.Width;
+                        origH = activeBitmap.Height;
 
                         if (isTiff)
                         {
@@ -419,12 +503,12 @@ namespace PhotoVault.ScannerBridge
                                     using (var encParams = new EncoderParameters(1))
                                     {
                                         encParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Compression, (long)EncoderValue.CompressionLZW);
-                                        bitmap.Save(tiffMs, tiffCodec, encParams);
+                                        activeBitmap.Save(tiffMs, tiffCodec, encParams);
                                     }
                                 }
                                 else
                                 {
-                                    bitmap.Save(tiffMs, ImageFormat.Tiff);
+                                    activeBitmap.Save(tiffMs, ImageFormat.Tiff);
                                 }
                                 mainBytes = tiffMs.ToArray();
                             }
@@ -436,7 +520,7 @@ namespace PhotoVault.ScannerBridge
                                 using (var encParams = new EncoderParameters(1))
                                 {
                                     encParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 88L);
-                                    bitmap.Save(prevMs, jpgEncoder, encParams);
+                                    activeBitmap.Save(prevMs, jpgEncoder, encParams);
                                 }
                                 previewBytes = prevMs.ToArray();
                             }
@@ -450,20 +534,23 @@ namespace PhotoVault.ScannerBridge
                                 using (var encoderParams = new EncoderParameters(1))
                                 {
                                     encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 92L);
-                                    bitmap.Save(outMs, jpgEncoder, encoderParams);
+                                    activeBitmap.Save(outMs, jpgEncoder, encoderParams);
                                 }
                                 mainBytes = outMs.ToArray();
                             }
                             previewBytes = mainBytes;
                         }
+
+                        if (clonedBitmapDisposable(croppedClone)) croppedClone.Dispose();
                     }
 
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("Scan successful! " + origW + "x" + origH + " px @ " + dpi + " DPI (" + (mainBytes.Length / 1024) + " KB " + (isTiff ? "TIFF RAW" : "JPEG") + ")");
+                    Console.WriteLine(string.Format("Scan successful! {0}x{1} px @ {2} DPI ({3} KB {4})",
+                        origW, origH, dpi, (mainBytes.Length / 1024), (isTiff ? "TIFF RAW" : "JPEG")));
                     Console.WriteLine("Sent directly to PhotoVault web UI (Zero external apps).");
                     Console.ResetColor();
 
-                    SendScanResponse(res, origW, origH, dpi, targetFmt, targetMime, mainBytes, previewBytes);
+                    SendScanResponse(res, origW, origH, dpi, targetFmt, targetMime, isPreview, hasCrop, mainBytes, previewBytes);
                     scanSucceeded = true;
                 }
                 catch (Exception ex)
@@ -482,7 +569,12 @@ namespace PhotoVault.ScannerBridge
             }
         }
 
-        private static void SendScanResponse(HttpListenerResponse res, int origW, int origH, int dpi, string format, string mime, byte[] mainBytes, byte[] previewBytes)
+        private static bool clonedBitmapDisposable(Bitmap bmp)
+        {
+            return bmp != null;
+        }
+
+        private static void SendScanResponse(HttpListenerResponse res, int origW, int origH, int dpi, string format, string mime, bool isPreview, bool isCropped, byte[] mainBytes, byte[] previewBytes)
         {
             try
             {
@@ -502,6 +594,10 @@ namespace PhotoVault.ScannerBridge
                     sw.Write(EscapeJson(format));
                     sw.Write(",\"mime\":");
                     sw.Write(EscapeJson(mime));
+                    sw.Write(",\"isPreview\":");
+                    sw.Write(isPreview ? "true" : "false");
+                    sw.Write(",\"isCropped\":");
+                    sw.Write(isCropped ? "true" : "false");
                     sw.Write(",\"size\":");
                     sw.Write(mainBytes.Length);
 
@@ -570,6 +666,67 @@ namespace PhotoVault.ScannerBridge
             catch { }
         }
 
+        private static int GetPropertyMax(dynamic props, int propId, int def)
+        {
+            try
+            {
+                foreach (dynamic p in props)
+                {
+                    if ((int)p.PropertyID == propId)
+                    {
+                        try
+                        {
+                            int max = (int)p.SubTypeMax;
+                            if (max > 0) return max;
+                        }
+                        catch { }
+                        try
+                        {
+                            int val = (int)p.Value;
+                            if (val > 0) return val;
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch { }
+            return def;
+        }
+
+        private static bool TryGetCrop(string json, out double cropX, out double cropY, out double cropW, out double cropH)
+        {
+            cropX = ParseJsonDouble(json, "cropX", -1.0);
+            cropY = ParseJsonDouble(json, "cropY", -1.0);
+            cropW = ParseJsonDouble(json, "cropW", -1.0);
+            cropH = ParseJsonDouble(json, "cropH", -1.0);
+
+            if (cropX >= 0 && cropY >= 0 && cropW > 0 && cropH > 0)
+            {
+                return true;
+            }
+
+            int cropIdx = json.IndexOf("\"crop\"", StringComparison.OrdinalIgnoreCase);
+            if (cropIdx >= 0)
+            {
+                int openBrace = json.IndexOf('{', cropIdx);
+                int closeBrace = json.IndexOf('}', openBrace + 1);
+                if (openBrace >= 0 && closeBrace > openBrace)
+                {
+                    string cropSub = json.Substring(openBrace, closeBrace - openBrace + 1);
+                    cropX = ParseJsonDouble(cropSub, "x", -1.0);
+                    cropY = ParseJsonDouble(cropSub, "y", -1.0);
+                    cropW = ParseJsonDouble(cropSub, "w", -1.0);
+                    cropH = ParseJsonDouble(cropSub, "h", -1.0);
+                    if (cropX >= 0 && cropY >= 0 && cropW > 0 && cropH > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private static string EscapeJson(string s)
         {
             if (s == null) return "\"\"";
@@ -626,6 +783,24 @@ namespace PhotoVault.ScannerBridge
                 string valStr = (end > 0 ? json.Substring(colon + 1, end - colon - 1) : json.Substring(colon + 1)).Trim();
                 int result;
                 if (int.TryParse(valStr, out result)) return result;
+                return def;
+            }
+            catch { return def; }
+        }
+
+        private static double ParseJsonDouble(string json, string key, double def)
+        {
+            try
+            {
+                string needle = "\"" + key + "\"";
+                int idx = json.IndexOf(needle, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0) return def;
+                int colon = json.IndexOf(':', idx + needle.Length);
+                if (colon < 0) return def;
+                int end = json.IndexOfAny(new char[] { ',', '}', '\r', '\n' }, colon + 1);
+                string valStr = (end > 0 ? json.Substring(colon + 1, end - colon - 1) : json.Substring(colon + 1)).Trim();
+                double result;
+                if (double.TryParse(valStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out result)) return result;
                 return def;
             }
             catch { return def; }
